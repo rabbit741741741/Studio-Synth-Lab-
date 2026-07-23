@@ -1,0 +1,32 @@
+Publicar SynthLab Studio v1 no GitHub Pages
+
+1. Criar novo repositório recomendado:
+   SynthLab_Studio_PWA_v1
+
+2. Fazer upload dos ficheiros soltos na raiz:
+   index.html
+   app.js
+   style.css
+   presets.js
+   manifest.json
+   service-worker.js
+   limpar_cache.html
+   icons/
+   LEIA-ME_PT.txt
+   PUBLICAR_GITHUB_PAGES_PT.txt
+
+3. Settings -> Pages:
+   Source: Deploy from a branch
+   Branch: main
+   Folder: /root
+
+4. Esperar deploy.
+
+5. Abrir primeiro:
+   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/limpar_cache.html
+
+6. Depois abrir:
+   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1
+
+7. Para instalar no PC/Android:
+   Chrome/Edge -> Instalar app / Adicionar ao ecrã principal.

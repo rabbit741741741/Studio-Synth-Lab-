@@ -1,0 +1,30 @@
+SynthLab Studio v1 — Primeira versão experimental
+
+Objetivo:
+Esta versão cria uma nova frente separada do SynthLab Lite. O Lite deve continuar simples: presets, temporizador, sequências e offline. O Studio é um espaço de criação sonora/musical com Player simples e Modo Studio.
+
+Inclui:
+- Player: preset rápido, temporizador opcional, sequências programadas.
+- Studio: 3 camadas sonoras, Pad XY, modulações, filtros, panorama e painel "A ouvir agora".
+- Modulações: tom contínuo + pulso, tremolo, vibrato leve, filtro oscilante e panorama automático.
+- Sequências: Noturna Alargada, Reset de Ansiedade, Foco Profundo e Meditação de Transição.
+- Aceita pulsos decimais como 0.1 e 0.5, bem como 0,1 e 0,5.
+- PWA/offline via service-worker.js.
+- Página limpar_cache.html para remover cache antiga.
+
+Nota de rigor:
+As descrições de efeitos são simbólicas, subjetivas e experienciais. Não são prova científica, diagnóstico, tratamento, cura ou prevenção. Usar volume baixo e parar em caso de desconforto.
+
+Publicação no GitHub Pages:
+Carregar todos os ficheiros da pasta para a raiz do repositório:
+index.html, app.js, style.css, presets.js, manifest.json, service-worker.js, limpar_cache.html, icons/.
+Depois abrir:
+/limpar_cache.html
+ou
+/index.html?v=studio1
+
+Uso local offline:
+1. Descompactar a pasta.
+2. Abrir CMD/Terminal dentro da pasta.
+3. Executar: py -m http.server 8000
+4. Abrir: http://localhost:8000

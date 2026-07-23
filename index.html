@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>SynthLab Studio v1</title>
+  <link rel="manifest" href="manifest.json?v=studio1" />
+  <link rel="stylesheet" href="style.css?v=studio1" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">SynthLab Studio v1</p>
+      <h1>Creative Space</h1>
+      <p class="subtitle">Player simples + modo Studio para criação sonora tátil, concreta e sem overcrowding.</p>
+    </div>
+    <div class="header-actions">
+      <button id="playStopBtn" class="primary big">Iniciar</button>
+      <button id="panicBtn" class="ghost">Silêncio</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="now-card" aria-live="polite">
+      <div class="now-topline">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="transportState">Parado</span>
+        <span class="version-pill">v1 carregada</span>
+      </div>
+      <h2>A ouvir agora</h2>
+      <div id="nowSummary" class="now-summary">Nenhum som ativo. Carrega em Iniciar.</div>
+      <div id="technicalSummary" class="technical-summary"></div>
+      <div class="master-row">
+        <label for="masterGain">Master</label>
+        <input id="masterGain" type="range" min="0" max="0.9" step="0.01" value="0.35" />
+        <span id="masterValue">35%</span>
+      </div>
+    </section>
+
+    <nav class="mode-tabs" aria-label="Modos principais">
+      <button class="tab active" data-mode="player">Player</button>
+      <button class="tab" data-mode="studio">Studio</button>
+      <button class="tab" data-mode="guide">Guia</button>
+    </nav>
+
+    <section id="modePlayer" class="mode-panel active">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Modo Player</p>
+          <h2>Presets, temporizador e sequências</h2>
+        </div>
+        <p class="compact-note">Som indefinido por defeito. O temporizador só limita quando está ativo.</p>
+      </div>
+
+      <div class="grid two">
+        <article class="card">
+          <h3>Preset rápido</h3>
+          <div class="form-grid">
+            <label>Frequência base
+              <select id="playerBase"></select>
+            </label>
+            <label>Pulso
+              <select id="playerPulse"></select>
+            </label>
+            <label>Modo
+              <select id="playerModType">
+                <option value="continuous_plus_pulse">Tom contínuo + pulso</option>
+                <option value="tremolo">Tremolo contínuo</option>
+                <option value="vibrato">Vibrato leve</option>
+                <option value="filter_sweep">Filtro oscilante</option>
+                <option value="pan_motion">Panorama automático</option>
+              </select>
+            </label>
+            <label>Nível
+              <input id="playerLevel" type="range" min="0" max="0.8" step="0.01" value="0.45" />
+            </label>
+          </div>
+          <button id="applyPlayerPreset" class="secondary">Aplicar ao Canal 1</button>
+        </article>
+
+        <article class="card">
+          <h3>Temporizador opcional</h3>
+          <label class="inline-check">
+            <input id="timerEnabled" type="checkbox" />
+            Usar temporizador nesta sessão
+          </label>
+          <div class="time-grid">
+            <label>Horas <input id="timerHours" type="number" min="0" max="24" step="1" value="0" /></label>
+            <label>Min <input id="timerMinutes" type="number" min="0" max="59" step="1" value="20" /></label>
+            <label>Seg <input id="timerSeconds" type="number" min="0" max="59" step="1" value="0" /></label>
+          </div>
+          <p class="hint" id="timerHint">Desligado: a reprodução fica indefinida.</p>
+        </article>
+      </div>
+
+      <details class="card details-card" open>
+        <summary>Sequência programada</summary>
+        <div class="sequence-head">
+          <label>Preset de sequência
+            <select id="sequencePresetSelect"></select>
+          </label>
+          <button id="loadSequencePreset" class="secondary">Carregar preset</button>
+          <button id="startSequenceBtn" class="primary">Iniciar sequência</button>
+        </div>
+        <div id="sequenceRows" class="sequence-rows"></div>
+        <div class="row-actions">
+          <button id="addSequenceRow" class="ghost">Adicionar etapa</button>
+          <label class="inline-check small"><input id="sequenceLoop" type="checkbox" /> Repetir sequência</label>
+        </div>
+      </details>
+    </section>
+
+    <section id="modeStudio" class="mode-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Modo Studio</p>
+          <h2>Criação tátil e camadas sonoras</h2>
+        </div>
+        <p class="compact-note">Controlos grandes primeiro; detalhe técnico só nos painéis recolhíveis.</p>
+      </div>
+
+      <div class="grid two">
+        <article class="card performance-card">
+          <h3>Pad XY — performance</h3>
+          <p class="hint">X controla frequência do Canal 1. Y controla intensidade da modulação. Tocar/arrastar altera o som em tempo real.</p>
+          <div id="xyPad" class="xy-pad" role="application" aria-label="Pad XY para frequência e modulação">
+            <div class="xy-crosshair" id="xyCrosshair"></div>
+            <span class="xy-label x-label">frequência →</span>
+            <span class="xy-label y-label">intensidade ↑</span>
+          </div>
+          <div class="xy-readout" id="xyReadout">X: 528 Hz · Y: 45%</div>
+        </article>
+
+        <article class="card">
+          <h3>Resultado do gesto</h3>
+          <div id="gestureExplain" class="explain-box">
+            Arrasta o Pad XY para ouvir a relação entre frequência base e intensidade de modulação.
+          </div>
+          <div class="mini-grid">
+            <button class="chip" data-studio-set="calm">Calma</button>
+            <button class="chip" data-studio-set="focus">Foco</button>
+            <button class="chip" data-studio-set="space">Espaço</button>
+            <button class="chip" data-studio-set="texture">Textura</button>
+          </div>
+        </article>
+      </div>
+
+      <details class="card details-card" open>
+        <summary>Camadas sonoras</summary>
+        <div id="layersEditor" class="layers-editor"></div>
+      </details>
+
+      <details class="card details-card">
+        <summary>Mapa técnico das modulações</summary>
+        <div class="mod-map">
+          <div><strong>Tom contínuo + pulso</strong><span>Amplitude nunca cai para zero; o pulso acentua o volume.</span></div>
+          <div><strong>Tremolo contínuo</strong><span>Oscilação sinusoidal do volume, mais suave e musical.</span></div>
+          <div><strong>Vibrato leve</strong><span>Pequena variação periódica da frequência em torno do valor base.</span></div>
+          <div><strong>Filtro oscilante</strong><span>Mexe na cor/timbre do som, abrindo e fechando um filtro.</span></div>
+          <div><strong>Panorama automático</strong><span>Move o som entre esquerda e direita sem alterar a frequência.</span></div>
+        </div>
+      </details>
+    </section>
+
+    <section id="modeGuide" class="mode-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Guia</p>
+          <h2>Regras de uso e desenvolvimento</h2>
+        </div>
+      </div>
+      <article class="card text-card">
+        <h3>Nota de rigor</h3>
+        <p>As descrições de efeitos são simbólicas, subjetivas e experienciais. O SynthLab Studio gera áudio para exploração sonora, meditação, relaxamento, estudo de frequências e criação musical. Não é dispositivo médico, não diagnostica, não trata, não cura e não previne doenças.</p>
+        <p>Usa volume baixo, especialmente em sessões longas. Para uso noturno, reduz brilho, volume e evita aquecimento do dispositivo.</p>
+      </article>
+      <article class="card text-card">
+        <h3>Estratégia de produto</h3>
+        <p><strong>SynthLab Lite</strong> deve continuar simples: presets, temporizador, sequências e offline.</p>
+        <p><strong>SynthLab Studio</strong> é a frente experimental: camadas, pads, modulações, filtros, loops, controladores e criação musical.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Offline-first PWA · sem login · sem microfone · sem telemetria própria</span>
+  </footer>
+
+  <script src="presets.js?v=studio1"></script>
+  <script src="app.js?v=studio1"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Limpar cache — SynthLab Studio</title>
+  <style>
+    body{margin:0;background:#000;color:#e0e0e0;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;padding:20px}
+    main{max-width:680px;background:#121212;border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:22px;line-height:1.5}
+    button,a{display:inline-block;margin-top:12px;background:#2e8b57;color:#fff;border:0;border-radius:999px;padding:.8rem 1rem;text-decoration:none;font:inherit}
+    code{color:#c5a059}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Limpar cache — SynthLab Studio</h1>
+    <p>Esta página remove service workers e caches antigos desta app, depois abre a versão Studio v1.</p>
+    <p id="status">A limpar...</p>
+    <button id="go">Abrir Studio v1</button>
+  </main>
+  <script>
+    async function clean(){
+      const status = document.getElementById('status');
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        try { localStorage.clear(); sessionStorage.clear(); } catch {}
+        status.textContent = 'Cache limpa. A abrir a versão Studio v1...';
+        setTimeout(() => { location.href = './index.html?v=studio1_reset'; }, 900);
+      } catch (e) {
+        status.textContent = 'Não foi possível limpar tudo automaticamente. Podes abrir a versão nova manualmente.';
+      }
+    }
+    document.getElementById('go').onclick = () => { location.href = './index.html?v=studio1_reset'; };
+    clean();
+  </script>
+</body>
+</html>
