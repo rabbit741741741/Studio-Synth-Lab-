@@ -75,7 +75,7 @@ button.active, .chip.active { border-color: var(--green); background: rgba(46,13
 input[type="range"] { accent-color: var(--gold); width: 100%; }
 input[type="checkbox"] { accent-color: var(--green); }
 
-.mode-tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 5px; gap: 5px; margin: 14px 0; }
+.mode-tabs { display: grid; grid-template-columns: repeat(5, 1fr); padding: 5px; gap: 5px; margin: 14px 0; }
 .tab { border-radius: 13px; background: transparent; border: none; color: var(--muted); }
 .tab.active { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
 .mode-panel { display: none; }
@@ -187,4 +187,40 @@ select:focus, input:focus { outline: 2px solid rgba(197,160,89,.35); border-colo
   .mode-tabs { grid-template-columns: 1fr; }
   .time-grid { grid-template-columns: 1fr; }
   .sequence-row { grid-template-columns: 1fr; }
+}
+
+
+/* v1.1 — teclado, arpejos e controladores */
+.musical-keyboard {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(42px, 1fr));
+  gap: 6px;
+  margin: 14px 0 8px;
+  touch-action: none;
+}
+.key-btn {
+  min-height: 82px;
+  border-radius: 12px;
+  padding: .35rem .2rem;
+  font-size: .82rem;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  border: 1px solid var(--line);
+  user-select: none;
+}
+.key-btn.white { background: linear-gradient(180deg, #e8e3d7, #b9b0a1); color: #111; }
+.key-btn.black { background: linear-gradient(180deg, #262626, #050505); color: var(--text); min-height: 64px; }
+.key-btn.in-scale { border-color: rgba(46,139,87,.7); box-shadow: inset 0 0 0 1px rgba(46,139,87,.18); }
+.key-btn.active { transform: translateY(2px); border-color: var(--gold); box-shadow: 0 0 18px rgba(197,160,89,.35); }
+.arp-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .85rem; }
+.small-explain { min-height: 118px; }
+.controller-pad { margin-top: 12px; }
+.compact-map { margin-top: 12px; }
+.compact-map div { grid-template-columns: 100px 1fr; align-items: baseline; }
+.note-badge { color: var(--gold); }
+@media (max-width: 850px) {
+  .arp-panel { grid-template-columns: 1fr; }
+  .musical-keyboard { grid-template-columns: repeat(6, minmax(42px, 1fr)); }
+  .key-btn { min-height: 70px; }
 }

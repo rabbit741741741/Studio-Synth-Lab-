@@ -1,8 +1,8 @@
 {
-  "name": "SynthLab Studio v1",
+  "name": "SynthLab Studio v1.1",
   "short_name": "SynthLab Studio",
   "description": "Espaço de criação sonora com Player simples e modo Studio tátil.",
-  "start_url": "./index.html?v=studio1",
+  "start_url": "./index.html?v=studio1_1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",

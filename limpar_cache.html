@@ -32,12 +32,12 @@
         }
         try { localStorage.clear(); sessionStorage.clear(); } catch {}
         status.textContent = 'Cache limpa. A abrir a versão Studio v1...';
-        setTimeout(() => { location.href = './index.html?v=studio1_reset'; }, 900);
+        setTimeout(() => { location.href = './index.html?v=studio1_1_reset'; }, 900);
       } catch (e) {
         status.textContent = 'Não foi possível limpar tudo automaticamente. Podes abrir a versão nova manualmente.';
       }
     }
-    document.getElementById('go').onclick = () => { location.href = './index.html?v=studio1_reset'; };
+    document.getElementById('go').onclick = () => { location.href = './index.html?v=studio1_1_reset'; };
     clean();
   </script>
 </body>

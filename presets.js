@@ -1,4 +1,4 @@
-/* SynthLab Studio v1 — presets e sequências */
+/* SynthLab Studio v1.1 — presets, sequências e base para teclado/controladores */
 window.SYNTHLAB_PRESETS = (() => {
   const bases = [
     { hz: 174, label: '174 Hz — segurança corporal', meaning: 'relaxamento corporal e sensação de base física' },

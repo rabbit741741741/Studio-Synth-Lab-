@@ -4,16 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>SynthLab Studio v1</title>
-  <link rel="manifest" href="manifest.json?v=studio1" />
-  <link rel="stylesheet" href="style.css?v=studio1" />
+  <title>SynthLab Studio v1.1</title>
+  <link rel="manifest" href="manifest.json?v=studio1_1" />
+  <link rel="stylesheet" href="style.css?v=studio1_1" />
 </head>
 <body>
   <header class="app-header">
     <div>
-      <p class="eyebrow">SynthLab Studio v1</p>
+      <p class="eyebrow">SynthLab Studio v1.1</p>
       <h1>Creative Space</h1>
-      <p class="subtitle">Player simples + modo Studio para criação sonora tátil, concreta e sem overcrowding.</p>
+      <p class="subtitle">Player simples + Studio, teclado, acordes, arpejos e controladores sem overcrowding.</p>
     </div>
     <div class="header-actions">
       <button id="playStopBtn" class="primary big">Iniciar</button>
@@ -26,7 +26,7 @@
       <div class="now-topline">
         <span class="status-dot" id="statusDot"></span>
         <span id="transportState">Parado</span>
-        <span class="version-pill">v1 carregada</span>
+        <span class="version-pill">v1.1 carregada</span>
       </div>
       <h2>A ouvir agora</h2>
       <div id="nowSummary" class="now-summary">Nenhum som ativo. Carrega em Iniciar.</div>
@@ -41,6 +41,8 @@
     <nav class="mode-tabs" aria-label="Modos principais">
       <button class="tab active" data-mode="player">Player</button>
       <button class="tab" data-mode="studio">Studio</button>
+      <button class="tab" data-mode="keyboard">Teclado</button>
+      <button class="tab" data-mode="control">Controladores</button>
       <button class="tab" data-mode="guide">Guia</button>
     </nav>
 
@@ -163,6 +165,157 @@
       </details>
     </section>
 
+
+
+    <section id="modeKeyboard" class="mode-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Modo Teclado</p>
+          <h2>Notas, acordes, arpejos e modelação musical</h2>
+        </div>
+        <p class="compact-note">Tocável por rato, touch, touchpad, teclado do PC ou controlador MIDI.</p>
+      </div>
+
+      <div class="grid two">
+        <article class="card">
+          <h3>Teclado musical</h3>
+          <div class="form-grid">
+            <label>Tónica
+              <select id="kbdRoot"></select>
+            </label>
+            <label>Escala
+              <select id="kbdScale">
+                <option value="chromatic">Cromática</option>
+                <option value="major">Maior</option>
+                <option value="minor">Menor natural</option>
+                <option value="pentatonic">Pentatónica</option>
+                <option value="dorian">Dórica</option>
+              </select>
+            </label>
+            <label>Oitava base
+              <select id="kbdOctave">
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </label>
+            <label>Onda
+              <select id="kbdWaveform">
+                <option value="sine">sine — puro</option>
+                <option value="triangle">triangle — suave</option>
+                <option value="sawtooth">sawtooth — rico</option>
+                <option value="square">square — marcado</option>
+              </select>
+            </label>
+          </div>
+          <div id="musicalKeyboard" class="musical-keyboard" aria-label="Teclado cromático"></div>
+          <p class="hint">Teclado do PC: A W S E D F T G Y H U J K. Usa Shift para subir uma oitava.</p>
+        </article>
+
+        <article class="card">
+          <h3>Acordes, arpejos e presets de modelação</h3>
+          <div class="form-grid">
+            <label>Acorde
+              <select id="kbdChord">
+                <option value="single">Nota única</option>
+                <option value="major">Maior</option>
+                <option value="minor">Menor</option>
+                <option value="sus2">Sus2</option>
+                <option value="sus4">Sus4</option>
+                <option value="power">Power</option>
+                <option value="maj7">Maior 7</option>
+                <option value="min7">Menor 7</option>
+              </select>
+            </label>
+            <label>Modelação do teclado
+              <select id="kbdModPreset">
+                <option value="soft528">528 + 0.1 — respiração suave</option>
+                <option value="theta852">852 + 6 — presença/Theta</option>
+                <option value="focus741">741 + 15 — foco/escrita</option>
+                <option value="witness963">963 + 0.5 — testemunha</option>
+                <option value="texture417">417 + filtro — textura</option>
+                <option value="dry">Sem modelação forte</option>
+              </select>
+            </label>
+            <label>Nível teclado
+              <input id="kbdLevel" type="range" min="0" max="0.65" step="0.01" value="0.28" />
+            </label>
+            <label>Filtro Hz
+              <input id="kbdFilter" type="range" min="250" max="10000" step="10" value="2600" />
+            </label>
+          </div>
+          <div class="arp-panel">
+            <label class="inline-check"><input id="arpEnabled" type="checkbox" /> Arpegiador</label>
+            <label class="inline-check"><input id="arpLatch" type="checkbox" /> Manter arpejo</label>
+            <label>Ritmo
+              <select id="arpRate">
+                <option value="1">1 nota/s</option>
+                <option value="2" selected>2 notas/s</option>
+                <option value="4">4 notas/s</option>
+                <option value="6">6 notas/s</option>
+                <option value="8">8 notas/s</option>
+              </select>
+            </label>
+            <label>Ordem
+              <select id="arpPattern">
+                <option value="up">Subir</option>
+                <option value="down">Descer</option>
+                <option value="updown">Subir/descer</option>
+                <option value="random">Aleatório controlado</option>
+              </select>
+            </label>
+          </div>
+          <div id="kbdExplain" class="explain-box small-explain">Escolhe uma nota/acorde para ouvir. A modelação define pulso, filtro, panorama e movimento.</div>
+        </article>
+      </div>
+    </section>
+
+    <section id="modeControl" class="mode-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Controladores</p>
+          <h2>Touchpad, movimento e MIDI</h2>
+        </div>
+        <p class="compact-note">Um gesto deve alterar variáveis concretas: frequência, pulso, filtro, panorama ou intensidade.</p>
+      </div>
+
+      <div class="grid two">
+        <article class="card performance-card">
+          <h3>Touchpad de controlo</h3>
+          <div class="form-grid">
+            <label>Eixo X controla
+              <select id="ctrlXAssign"></select>
+            </label>
+            <label>Eixo Y controla
+              <select id="ctrlYAssign"></select>
+            </label>
+          </div>
+          <div id="controllerPad" class="xy-pad controller-pad" role="application" aria-label="Touchpad de controlo de variáveis">
+            <div class="xy-crosshair" id="controllerCrosshair"></div>
+            <span class="xy-label x-label">X → variável escolhida</span>
+            <span class="xy-label y-label">Y ↑ variável escolhida</span>
+          </div>
+          <div class="xy-readout" id="controllerReadout">X/Y prontos.</div>
+        </article>
+
+        <article class="card">
+          <h3>MIDI e movimento</h3>
+          <button id="enableMidiBtn" class="secondary">Ativar MIDI</button>
+          <p id="midiStatus" class="hint">MIDI desligado. Se o browser/dispositivo suportar, notas e CCs serão mapeados.</p>
+          <div class="mod-map compact-map">
+            <div><strong>Notas MIDI</strong><span>tocam o teclado interno com a modelação escolhida.</span></div>
+            <div><strong>CC 1</strong><span>intensidade da modulação do teclado.</span></div>
+            <div><strong>CC 7</strong><span>master volume.</span></div>
+            <div><strong>CC 74</strong><span>filtro/timbre do teclado.</span></div>
+            <div><strong>Pitch bend</strong><span>desvio subtil de afinação nas notas novas.</span></div>
+          </div>
+          <button id="enableMotionBtn" class="ghost">Ativar movimento do dispositivo</button>
+          <p id="motionStatus" class="hint">Movimento desligado. Quando ativo, inclinação pode modelar panorama e filtro.</p>
+        </article>
+      </div>
+    </section>
+
     <section id="modeGuide" class="mode-panel">
       <div class="section-heading">
         <div>
@@ -178,7 +331,7 @@
       <article class="card text-card">
         <h3>Estratégia de produto</h3>
         <p><strong>SynthLab Lite</strong> deve continuar simples: presets, temporizador, sequências e offline.</p>
-        <p><strong>SynthLab Studio</strong> é a frente experimental: camadas, pads, modulações, filtros, loops, controladores e criação musical.</p>
+        <p><strong>SynthLab Studio</strong> é a frente experimental: camadas, pads, teclado, acordes, arpejos, modulações, filtros, loops, controladores e criação musical.</p>
       </article>
     </section>
   </main>
@@ -187,7 +340,7 @@
     <span>Offline-first PWA · sem login · sem microfone · sem telemetria própria</span>
   </footer>
 
-  <script src="presets.js?v=studio1"></script>
-  <script src="app.js?v=studio1"></script>
+  <script src="presets.js?v=studio1_1"></script>
+  <script src="app.js?v=studio1_1"></script>
 </body>
 </html>

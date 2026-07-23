@@ -1,4 +1,4 @@
-SynthLab Studio v1 — Primeira versão experimental
+SynthLab Studio v1.1 — Primeira versão experimental
 
 Objetivo:
 Esta versão cria uma nova frente separada do SynthLab Lite. O Lite deve continuar simples: presets, temporizador, sequências e offline. O Studio é um espaço de criação sonora/musical com Player simples e Modo Studio.
@@ -28,3 +28,9 @@ Uso local offline:
 2. Abrir CMD/Terminal dentro da pasta.
 3. Executar: py -m http.server 8000
 4. Abrir: http://localhost:8000
+
+
+Atualização v1.1:
+- Modo Teclado com notas, acordes, arpegiador e presets de modelação.
+- Controlo por touch, touchpad/rato, teclado do PC, MIDI quando suportado e movimento do dispositivo quando autorizado.
+- Touchpad de controladores com mapeamento explícito para frequência, pulso, filtro, panorama e intensidade.

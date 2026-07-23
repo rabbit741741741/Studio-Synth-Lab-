@@ -1,4 +1,4 @@
-Publicar SynthLab Studio v1 no GitHub Pages
+Publicar SynthLab Studio v1.1 no GitHub Pages
 
 1. Criar novo repositório recomendado:
    SynthLab_Studio_PWA_v1
@@ -26,7 +26,7 @@ Publicar SynthLab Studio v1 no GitHub Pages
    https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/limpar_cache.html
 
 6. Depois abrir:
-   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1
+   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1_1
 
 7. Para instalar no PC/Android:
    Chrome/Edge -> Instalar app / Adicionar ao ecrã principal.
