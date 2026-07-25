@@ -1,4 +1,4 @@
-/* SynthLab Studio v1.1 — Player + Creative Space + Keyboard/Controllers */
+/* SynthLab Studio v1.3 — Player + Creative Space + Keyboard/Controllers */
 const SR = 44100;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const qs = (sel, root = document) => root.querySelector(sel);
@@ -43,7 +43,20 @@ const MOD_EXPLAIN = {
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const PC_KEY_TO_SEMITONE = { a:0, w:1, s:2, e:3, d:4, f:5, t:6, g:7, y:8, h:9, u:10, j:11, k:12 };
 const CHORDS = {
-  single: [0], major: [0,4,7], minor: [0,3,7], sus2: [0,2,7], sus4: [0,5,7], power: [0,7,12], maj7: [0,4,7,11], min7: [0,3,7,10],
+  single: [0],
+  major: [0,4,7],
+  minor: [0,3,7],
+  dim: [0,3,6],
+  aug: [0,4,8],
+  sus2: [0,2,7],
+  sus4: [0,5,7],
+  power: [0,7,12],
+  maj7: [0,4,7,11],
+  dom7: [0,4,7,10],
+  min7: [0,3,7,10],
+  min9: [0,3,7,10,14],
+  add9: [0,4,7,14],
+  octave: [0,12,24],
 };
 const SCALES = {
   chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
@@ -54,7 +67,7 @@ const SCALES = {
 };
 const ROOTS = NOTE_NAMES.map((name, semi) => ({ name, semi }));
 const CTRL_ASSIGNMENTS = [
-  ['freq','Frequência canal 1'], ['pulseDepth','Intensidade modulação'], ['pulseHz','Pulso Hz'], ['filterCutoff','Filtro Hz'], ['pan','Panorama'], ['kbdFilter','Filtro teclado'], ['kbdDepth','Intensidade teclado']
+  ['freq','Frequência canal 1'], ['pulseDepth','Intensidade modulação'], ['pulseHz','Pulso Hz'], ['filterCutoff','Filtro Hz'], ['pan','Panorama'], ['kbdFilter','Filtro teclado'], ['kbdDepth','Intensidade teclado'], ['kbdRate','Velocidade efeito teclado'], ['kbdVibrato','Vibrato cents']
 ];
 const midiToFreq = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
 const midiName = (midi) => `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
@@ -65,6 +78,13 @@ const state = {
   ctx: null,
   master: null,
   analyser: null,
+  recDest: null,
+  recorder: null,
+  recordChunks: [],
+  recordUrl: null,
+  recordStartedAt: 0,
+  isRecording: false,
+  recordMimeType: '',
   isPlaying: false,
   sequenceMode: false,
   sequenceIndex: 0,
@@ -89,10 +109,15 @@ const state = {
     octave: 3,
     waveform: 'sine',
     chord: 'single',
+    chordVoicing: 'closed',
+    chordInversion: 0,
     level: 0.28,
     filterCutoff: 2600,
     pulseHz: 0.1,
     pulseDepth: 0.25,
+    vibratoCents: 18,
+    envelope: 'soft',
+    strumMs: 0,
     modType: 'continuous_plus_pulse',
     pan: 0,
     arpEnabled: false,
@@ -273,7 +298,9 @@ async function ensureAudio() {
     state.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SR });
     state.master = state.ctx.createGain();
     state.master.gain.value = parseDecimal(qs('#masterGain').value, 0.35);
+    state.recDest = state.ctx.createMediaStreamDestination();
     state.master.connect(state.ctx.destination);
+    state.master.connect(state.recDest);
   }
   if (state.ctx.state === 'suspended') await state.ctx.resume();
 }
@@ -459,6 +486,98 @@ function updateSequence(now) {
   }
 }
 
+
+function getRecordingMimeType() {
+  if (!window.MediaRecorder) return '';
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4;codecs=mp4a.40.2',
+    'audio/mp4'
+  ];
+  return candidates.find(type => MediaRecorder.isTypeSupported?.(type)) || '';
+}
+
+function updateRecorderUI() {
+  const startBtn = qs('#recordStartBtn');
+  const stopBtn = qs('#recordStopBtn');
+  const status = qs('#recordStatus');
+  const link = qs('#recordSaveLink');
+  if (!startBtn || !stopBtn || !status || !link) return;
+  startBtn.disabled = state.isRecording;
+  stopBtn.disabled = !state.isRecording;
+  if (state.isRecording) {
+    const elapsed = state.ctx ? Math.max(0, Math.floor(state.ctx.currentTime - state.recordStartedAt)) : 0;
+    status.textContent = `Gravação: ativa · ${secondsToClock(elapsed)} · ${state.recordMimeType || 'formato automático'}`;
+  } else {
+    status.textContent = state.recordUrl ? 'Gravação pronta para guardar.' : 'Gravação: parada';
+  }
+  link.classList.toggle('hidden', !state.recordUrl);
+}
+
+async function startRecording() {
+  const status = qs('#recordStatus');
+  if (!window.MediaRecorder) {
+    if (status) status.textContent = 'Gravação não suportada neste browser.';
+    return;
+  }
+  await ensureAudio();
+  if (!state.recDest) {
+    if (status) status.textContent = 'Destino de gravação indisponível.';
+    return;
+  }
+  if (state.isRecording) return;
+  if (state.recordUrl) {
+    URL.revokeObjectURL(state.recordUrl);
+    state.recordUrl = null;
+  }
+  state.recordChunks = [];
+  state.recordMimeType = getRecordingMimeType();
+  try {
+    const opts = state.recordMimeType ? { mimeType: state.recordMimeType } : undefined;
+    state.recorder = new MediaRecorder(state.recDest.stream, opts);
+    state.recorder.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0) state.recordChunks.push(ev.data);
+    };
+    state.recorder.onerror = () => {
+      if (status) status.textContent = 'Erro durante a gravação.';
+      state.isRecording = false;
+      updateRecorderUI();
+    };
+    state.recorder.onstop = () => {
+      const type = state.recordMimeType || 'audio/webm';
+      const blob = new Blob(state.recordChunks, { type });
+      state.recordUrl = URL.createObjectURL(blob);
+      const link = qs('#recordSaveLink');
+      if (link) {
+        link.href = state.recordUrl;
+        const ext = type.includes('mp4') ? 'm4a' : 'webm';
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        link.download = `synthlab-studio-${stamp}.${ext}`;
+      }
+      state.isRecording = false;
+      updateRecorderUI();
+    };
+    state.recorder.start(250);
+    state.recordStartedAt = state.ctx.currentTime;
+    state.isRecording = true;
+    updateRecorderUI();
+  } catch (err) {
+    if (status) status.textContent = 'Gravação bloqueada ou indisponível neste browser.';
+    state.isRecording = false;
+    updateRecorderUI();
+  }
+}
+
+function stopRecording() {
+  if (!state.recorder || !state.isRecording) return;
+  try { state.recorder.stop(); }
+  catch {
+    state.isRecording = false;
+    updateRecorderUI();
+  }
+}
+
 function onMasterChange() {
   const value = parseDecimal(qs('#masterGain').value, 0.35);
   qs('#masterValue').textContent = `${Math.round(value * 100)}%`;
@@ -599,31 +718,76 @@ function updateKeyboardStateFromUI() {
   state.keyboard.octave = parseDecimal(qs('#kbdOctave')?.value, 3);
   state.keyboard.waveform = qs('#kbdWaveform')?.value || 'sine';
   state.keyboard.chord = qs('#kbdChord')?.value || 'single';
+  state.keyboard.chordVoicing = qs('#kbdVoicing')?.value || 'closed';
+  state.keyboard.chordInversion = parseDecimal(qs('#kbdInversion')?.value, 0);
   state.keyboard.level = parseDecimal(qs('#kbdLevel')?.value, 0.28);
   state.keyboard.filterCutoff = parseDecimal(qs('#kbdFilter')?.value, 2600);
+  state.keyboard.modType = qs('#kbdEffectType')?.value || state.keyboard.modType || 'continuous_plus_pulse';
+  state.keyboard.pulseHz = parseDecimal(qs('#kbdEffectRate')?.value, state.keyboard.pulseHz || 0.1);
+  state.keyboard.pulseDepth = parseDecimal(qs('#kbdEffectDepth')?.value, state.keyboard.pulseDepth || 0.25);
+  state.keyboard.vibratoCents = parseDecimal(qs('#kbdVibratoCents')?.value, state.keyboard.vibratoCents || 18);
+  state.keyboard.envelope = qs('#kbdEnvelope')?.value || 'soft';
+  state.keyboard.strumMs = parseDecimal(qs('#kbdStrumMs')?.value, 0);
   state.keyboard.arpEnabled = !!qs('#arpEnabled')?.checked;
   state.keyboard.arpLatch = !!qs('#arpLatch')?.checked;
   state.keyboard.arpRate = parseDecimal(qs('#arpRate')?.value, 2);
   state.keyboard.arpPattern = qs('#arpPattern')?.value || 'up';
 }
 
+function setKeyboardUIFromState() {
+  const k = state.keyboard;
+  const values = {
+    '#kbdEffectType': k.modType,
+    '#kbdEffectRate': k.pulseHz,
+    '#kbdEffectDepth': k.pulseDepth,
+    '#kbdVibratoCents': k.vibratoCents,
+    '#kbdFilter': k.filterCutoff,
+    '#kbdLevel': k.level,
+    '#kbdEnvelope': k.envelope,
+    '#kbdStrumMs': k.strumMs,
+    '#kbdVoicing': k.chordVoicing,
+    '#kbdInversion': k.chordInversion,
+  };
+  Object.entries(values).forEach(([sel, val]) => { const el = qs(sel); if (el) el.value = String(val); });
+}
+
 function applyKeyboardModPreset() {
   const val = qs('#kbdModPreset')?.value || 'soft528';
   const k = state.keyboard;
-  if (val === 'soft528') { k.pulseHz = 0.1; k.pulseDepth = 0.25; k.modType = 'continuous_plus_pulse'; k.filterCutoff = 2400; k.pan = 0; }
-  if (val === 'theta852') { k.pulseHz = 6; k.pulseDepth = 0.38; k.modType = 'continuous_plus_pulse'; k.filterCutoff = 3000; k.pan = 0; }
-  if (val === 'focus741') { k.pulseHz = 15; k.pulseDepth = 0.32; k.modType = 'continuous_plus_pulse'; k.filterCutoff = 3600; k.pan = 0; }
-  if (val === 'witness963') { k.pulseHz = 0.5; k.pulseDepth = 0.42; k.modType = 'pan_motion'; k.filterCutoff = 4200; k.pan = 0; }
-  if (val === 'texture417') { k.pulseHz = 6; k.pulseDepth = 0.55; k.modType = 'filter_sweep'; k.filterCutoff = 1800; k.pan = 0; }
-  if (val === 'dry') { k.pulseHz = 1; k.pulseDepth = 0.05; k.modType = 'static'; k.filterCutoff = 5000; k.pan = 0; }
-  const filter = qs('#kbdFilter');
-  if (filter) filter.value = k.filterCutoff;
+  if (val === 'soft528') { k.pulseHz = 0.1; k.pulseDepth = 0.25; k.modType = 'continuous_plus_pulse'; k.vibratoCents = 8; k.filterCutoff = 2400; k.envelope = 'soft'; k.strumMs = 0; k.pan = 0; }
+  if (val === 'theta852') { k.pulseHz = 6; k.pulseDepth = 0.38; k.modType = 'continuous_plus_pulse'; k.vibratoCents = 10; k.filterCutoff = 3000; k.envelope = 'soft'; k.strumMs = 15; k.pan = 0; }
+  if (val === 'focus741') { k.pulseHz = 15; k.pulseDepth = 0.32; k.modType = 'continuous_plus_pulse'; k.vibratoCents = 6; k.filterCutoff = 3600; k.envelope = 'fast'; k.strumMs = 0; k.pan = 0; }
+  if (val === 'witness963') { k.pulseHz = 0.5; k.pulseDepth = 0.42; k.modType = 'pan_motion'; k.vibratoCents = 12; k.filterCutoff = 4200; k.envelope = 'pad'; k.strumMs = 45; k.pan = 0; }
+  if (val === 'texture417') { k.pulseHz = 6; k.pulseDepth = 0.55; k.modType = 'filter_sweep'; k.vibratoCents = 8; k.filterCutoff = 1800; k.envelope = 'soft'; k.strumMs = 25; k.pan = 0; }
+  if (val === 'vibratoLead') { k.pulseHz = 5.5; k.pulseDepth = 0.55; k.modType = 'vibrato'; k.vibratoCents = 35; k.filterCutoff = 3800; k.envelope = 'fast'; k.strumMs = 0; k.pan = 0; }
+  if (val === 'tremoloPulse') { k.pulseHz = 8; k.pulseDepth = 0.5; k.modType = 'tremolo'; k.vibratoCents = 6; k.filterCutoff = 3200; k.envelope = 'soft'; k.strumMs = 0; k.pan = 0; }
+  if (val === 'spacePan') { k.pulseHz = 0.35; k.pulseDepth = 0.65; k.modType = 'pan_motion'; k.vibratoCents = 10; k.filterCutoff = 4000; k.envelope = 'pad'; k.strumMs = 30; k.pan = 0; }
+  if (val === 'dry') { k.pulseHz = 1; k.pulseDepth = 0.04; k.modType = 'static'; k.vibratoCents = 0; k.filterCutoff = 5000; k.envelope = 'fast'; k.strumMs = 0; k.pan = 0; }
+  setKeyboardUIFromState();
   updateKeyboardExplain();
 }
 
 function chordMidis(rootMidi) {
-  const ints = CHORDS[state.keyboard.chord] || CHORDS.single;
-  return ints.map(x => rootMidi + x);
+  let ints = [...(CHORDS[state.keyboard.chord] || CHORDS.single)].sort((a,b)=>a-b);
+  const inv = Math.max(0, Math.min(parseInt(state.keyboard.chordInversion || 0, 10), Math.max(0, ints.length - 1)));
+  for (let i = 0; i < inv; i++) {
+    const first = ints.shift();
+    ints.push(first + 12);
+  }
+  if (state.keyboard.chordVoicing === 'open' && ints.length >= 3) {
+    ints[1] += 12;
+    ints.sort((a,b)=>a-b);
+  }
+  if (state.keyboard.chordVoicing === 'wide' && ints.length >= 3) {
+    ints = ints.map((x, i) => x + (i > 0 ? 12 * i : 0)).sort((a,b)=>a-b);
+  }
+  return ints.map(x => rootMidi + x).filter(m => m >= 24 && m <= 108);
+}
+
+function envelopeTimes(name) {
+  if (name === 'fast') return { attack: 0.012, release: 0.12 };
+  if (name === 'pad') return { attack: 0.22, release: 0.85 };
+  return { attack: 0.045, release: 0.28 };
 }
 
 function orderArpNotes(notes) {
@@ -645,8 +809,9 @@ async function keyboardDown(midi, group = `kbd-${midi}`) {
   if (state.keyboard.arpEnabled) {
     startArp(notes, group);
   } else {
-    const voiceIds = notes.map(n => triggerKeyboardVoice(n, { group }));
-    state.keyboard.heldGroups.set(group, voiceIds);
+    const spacing = Math.max(0, state.keyboard.strumMs || 0) / 1000;
+    const voiceIds = notes.map((n, i) => triggerKeyboardVoice(n, { group, delay: spacing * i }));
+    state.keyboard.heldGroups.set(group, voiceIds.filter(Boolean));
   }
   startVoiceLoop();
   updateUI();
@@ -680,10 +845,12 @@ function triggerKeyboardVoice(midi, opts = {}) {
   if (pan) { filter.connect(pan); pan.connect(state.master); pan.pan.value = k.pan; }
   else filter.connect(state.master);
   const now = state.ctx.currentTime;
-  osc.start(now);
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(k.level, now + 0.018);
-  const voice = { id, midi, freq, osc, gain, filter, pan, started: now, released: false, stopAt: null, group: opts.group || null, baseGain: k.level, pulseHz: k.pulseHz, depth: k.pulseDepth, modType: k.modType, filterCutoff: k.filterCutoff, panBase: k.pan };
+  const startAt = now + Math.max(0, opts.delay || 0);
+  const env = envelopeTimes(k.envelope);
+  osc.start(startAt);
+  gain.gain.setValueAtTime(0, startAt);
+  gain.gain.linearRampToValueAtTime(k.level, startAt + env.attack);
+  const voice = { id, midi, freq, osc, gain, filter, pan, started: startAt, released: false, stopAt: null, group: opts.group || null, baseGain: k.level, pulseHz: k.pulseHz, depth: k.pulseDepth, vibratoCents: k.vibratoCents, releaseTime: env.release, modType: k.modType, filterCutoff: k.filterCutoff, panBase: k.pan };
   state.voices.push(voice);
   if (opts.duration) setTimeout(() => releaseVoice(id), opts.duration * 1000);
   return id;
@@ -694,8 +861,9 @@ function releaseVoice(id) {
   if (!v || v.released || !state.ctx) return;
   const now = state.ctx.currentTime;
   v.released = true;
-  v.stopAt = now + 0.25;
-  try { v.gain.gain.cancelScheduledValues(now); v.gain.gain.setTargetAtTime(0, now, 0.055); v.osc.stop(now + 0.28); } catch {}
+  const rel = Math.max(0.04, v.releaseTime || 0.25);
+  v.stopAt = now + rel;
+  try { v.gain.gain.cancelScheduledValues(now); v.gain.gain.setTargetAtTime(0, now, rel / 4); v.osc.stop(now + rel + 0.05); } catch {}
 }
 
 function stopAllKeyboardVoices(immediate = false) {
@@ -744,6 +912,7 @@ function updateVoices(now) {
   updateArp(now);
   state.voices = state.voices.filter(v => {
     if (v.stopAt && now > v.stopAt + 0.15) { disconnectVoice(v); return false; }
+    if (now < v.started) return true;
     const t = now - v.started;
     const pulse = v.pulseHz > 0 ? (Math.sin(2 * Math.PI * v.pulseHz * t - Math.PI / 2) + 1) / 2 : 1;
     const depth = clamp(v.depth, 0, 0.95);
@@ -753,7 +922,7 @@ function updateVoices(now) {
     let pan = v.panBase;
     if (v.modType === 'continuous_plus_pulse') gain *= (1 - depth) + depth * pulse;
     else if (v.modType === 'tremolo') gain *= (1 - depth * 0.85) + (depth * 0.85) * pulse;
-    else if (v.modType === 'vibrato') freq = v.freq * Math.pow(2, (Math.sin(2*Math.PI*Math.max(v.pulseHz,0.1)*t) * 18 * depth) / 1200);
+    else if (v.modType === 'vibrato') freq = v.freq * Math.pow(2, (Math.sin(2*Math.PI*Math.max(v.pulseHz,0.1)*t) * (v.vibratoCents || 18) * depth) / 1200);
     else if (v.modType === 'filter_sweep') cutoff = clamp(v.filterCutoff * (0.6 + pulse * (1.4 + depth)), 160, 12000);
     else if (v.modType === 'pan_motion') pan = clamp(v.panBase + Math.sin(2*Math.PI*Math.max(v.pulseHz,0.05)*t)*depth, -1, 1);
     try {
@@ -782,15 +951,30 @@ function updateKeyboardExplain() {
   const box = qs('#kbdExplain');
   if (!box) return;
   const k = state.keyboard;
-  box.innerHTML = `<strong>Teclado</strong><br>Acorde: ${qs('#kbdChord')?.selectedOptions?.[0]?.textContent || 'Nota única'} · Arpejo: ${k.arpEnabled ? `${k.arpRate} nota/s` : 'desligado'}<br>Modelação: ${MOD_LABELS[k.modType]} · pulso ${fmtHz(k.pulseHz)} Hz · filtro ${Math.round(k.filterCutoff)} Hz.<br><span class="hint">Isto toca notas musicais, mas preserva a lógica física: frequência, amplitude, envelope, filtro, panorama e tempo.</span>`;
+  const chordName = qs('#kbdChord')?.selectedOptions?.[0]?.textContent || 'Nota única';
+  const voicingName = qs('#kbdVoicing')?.selectedOptions?.[0]?.textContent || 'Fechado';
+  const envName = qs('#kbdEnvelope')?.selectedOptions?.[0]?.textContent || 'Suave';
+  box.innerHTML = `<strong>Teclado</strong><br>Acorde: ${chordName} · voz: ${voicingName} · inversão ${k.chordInversion || 0} · arpejo: ${k.arpEnabled ? `${k.arpRate} nota/s` : 'desligado'}<br>Efeito: ${MOD_LABELS[k.modType]} · velocidade ${fmtHz(k.pulseHz)} Hz · profundidade ${Math.round(k.pulseDepth*100)}% · vibrato ${Math.round(k.vibratoCents || 0)} cents · filtro ${Math.round(k.filterCutoff)} Hz · envelope ${envName}.<br><span class="hint">Cada escolha altera variáveis concretas: notas em Hz, amplitude, envelope, filtro, panorama, vibrato e tempo.</span>`;
 }
 
 function setupKeyboardEvents() {
   ['#kbdRoot','#kbdScale','#kbdOctave'].forEach(sel => qs(sel)?.addEventListener('change', () => { updateKeyboardStateFromUI(); renderKeyboard(); }));
-  ['#kbdWaveform','#kbdChord','#arpRate','#arpPattern'].forEach(sel => qs(sel)?.addEventListener('change', () => { updateKeyboardStateFromUI(); updateKeyboardExplain(); }));
-  ['#kbdLevel','#kbdFilter'].forEach(sel => qs(sel)?.addEventListener('input', () => { updateKeyboardStateFromUI(); updateKeyboardExplain(); }));
+  ['#kbdWaveform','#kbdChord','#kbdVoicing','#kbdInversion','#kbdEffectType','#kbdEnvelope','#arpRate','#arpPattern'].forEach(sel => qs(sel)?.addEventListener('change', () => { updateKeyboardStateFromUI(); updateKeyboardExplain(); }));
+  ['#kbdLevel','#kbdFilter','#kbdEffectRate','#kbdEffectDepth','#kbdVibratoCents','#kbdStrumMs'].forEach(sel => qs(sel)?.addEventListener('input', () => { updateKeyboardStateFromUI(); updateKeyboardExplain(); }));
   ['#arpEnabled','#arpLatch'].forEach(sel => qs(sel)?.addEventListener('change', () => { updateKeyboardStateFromUI(); updateKeyboardExplain(); }));
   qs('#kbdModPreset')?.addEventListener('change', () => { applyKeyboardModPreset(); });
+  qsa('[data-kbd-effect]').forEach(btn => btn.addEventListener('click', () => {
+    const el = qs('#kbdEffectType');
+    if (el) el.value = btn.dataset.kbdEffect;
+    updateKeyboardStateFromUI();
+    qsa('[data-kbd-effect]').forEach(b => b.classList.toggle('active', b === btn));
+    updateKeyboardExplain();
+  }));
+  qs('#testChordBtn')?.addEventListener('click', async () => {
+    const root = (state.keyboard.octave + 1) * 12 + state.keyboard.rootSemi;
+    await keyboardDown(root, 'test-chord');
+    setTimeout(() => keyboardUp('test-chord'), state.keyboard.arpEnabled ? 1400 : 900);
+  });
   const down = new Set();
   window.addEventListener('keydown', (e) => {
     if (e.repeat || e.target.matches('input, textarea, select')) return;
@@ -822,7 +1006,9 @@ function applyControllerValue(assign, unit) {
   if (assign === 'filterCutoff') l.filterCutoff = Math.round(unitToLogRange(unit, 180, 10000));
   if (assign === 'pan') l.pan = Math.round((unit * 2 - 1) * 100) / 100;
   if (assign === 'kbdFilter') { k.filterCutoff = Math.round(unitToLogRange(unit, 250, 10000)); const el = qs('#kbdFilter'); if (el) el.value = k.filterCutoff; }
-  if (assign === 'kbdDepth') k.pulseDepth = Math.round(unit * 95) / 100;
+  if (assign === 'kbdDepth') { k.pulseDepth = Math.round(unit * 95) / 100; const el = qs('#kbdEffectDepth'); if (el) el.value = k.pulseDepth; }
+  if (assign === 'kbdRate') { k.pulseHz = Math.round(unitToLogRange(unit, 0.1, 40) * 100) / 100; const el = qs('#kbdEffectRate'); if (el) el.value = k.pulseHz; }
+  if (assign === 'kbdVibrato') { k.vibratoCents = Math.round(unit * 80); const el = qs('#kbdVibratoCents'); if (el) el.value = k.vibratoCents; }
   syncNodesFromState();
   renderLayers();
   updateKeyboardExplain();
@@ -876,7 +1062,7 @@ function onMIDIMessage(ev) {
   else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) keyboardUp(`midi-${d1}`);
   else if (cmd === 0xb0) {
     const u = ccToUnit(d2);
-    if (d1 === 1) { state.keyboard.pulseDepth = u; updateKeyboardExplain(); }
+    if (d1 === 1) { state.keyboard.pulseDepth = u; const el = qs('#kbdEffectDepth'); if (el) el.value = u.toFixed(2); updateKeyboardExplain(); }
     if (d1 === 7) { qs('#masterGain').value = (u * 0.9).toFixed(2); onMasterChange(); }
     if (d1 === 74) { state.keyboard.filterCutoff = Math.round(unitToLogRange(u, 250, 10000)); qs('#kbdFilter').value = state.keyboard.filterCutoff; updateKeyboardExplain(); }
     if (d1 === 10) { state.layers[0].pan = Math.round((u*2-1)*100)/100; renderLayers(); syncNodesFromState(); updateUI(); }
@@ -921,6 +1107,8 @@ function setupControllerEvents() {
 function initEvents() {
   qs('#playStopBtn').addEventListener('click', () => state.isPlaying ? stopPlayback() : startPlayback());
   qs('#panicBtn').addEventListener('click', panic);
+  qs('#recordStartBtn')?.addEventListener('click', startRecording);
+  qs('#recordStopBtn')?.addEventListener('click', stopRecording);
   qs('#masterGain').addEventListener('input', onMasterChange);
   qsa('.tab').forEach(tab => tab.addEventListener('click', () => setMode(tab.dataset.mode)));
   qs('#applyPlayerPreset').addEventListener('click', applyPlayerPreset);
@@ -937,7 +1125,7 @@ function initEvents() {
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js?v=studio1_1').catch(() => {});
+    navigator.serviceWorker.register('service-worker.js?v=studio1_3').catch(() => {});
   }
 }
 

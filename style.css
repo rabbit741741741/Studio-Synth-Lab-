@@ -190,7 +190,7 @@ select:focus, input:focus { outline: 2px solid rgba(197,160,89,.35); border-colo
 }
 
 
-/* v1.1 — teclado, arpejos e controladores */
+/* v1.3 — teclado, arpejos e controladores */
 .musical-keyboard {
   display: grid;
   grid-template-columns: repeat(12, minmax(42px, 1fr));
@@ -223,4 +223,45 @@ select:focus, input:focus { outline: 2px solid rgba(197,160,89,.35); border-colo
   .arp-panel { grid-template-columns: 1fr; }
   .musical-keyboard { grid-template-columns: repeat(6, minmax(42px, 1fr)); }
   .key-btn { min-height: 70px; }
+}
+
+/* v1.3 — acordes avançados, vibrato e efeitos diretos */
+.effect-chips {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .5rem;
+  margin: .85rem 0;
+}
+.full-width { width: 100%; justify-content: center; }
+#kbdExplain strong { color: var(--text); }
+@media (max-width: 620px) {
+  .effect-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* v1.3 — gravação interna */
+.record-row {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  flex-wrap: wrap;
+  margin-top: .85rem;
+  padding-top: .85rem;
+  border-top: 1px solid var(--line);
+}
+.record-row #recordStatus {
+  color: var(--muted);
+  font-size: .9rem;
+}
+.record-row a.buttonlike {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.hidden { display: none !important; }
+.record-hint { margin: .45rem 0 0; }
+button[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none !important;
 }

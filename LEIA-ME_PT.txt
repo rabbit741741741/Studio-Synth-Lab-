@@ -1,12 +1,15 @@
-SynthLab Studio v1.1 — Primeira versão experimental
+SynthLab Studio v1.3 — acordes avançados, vibrato, efeitos e gravação interna
 
 Objetivo:
-Esta versão cria uma nova frente separada do SynthLab Lite. O Lite deve continuar simples: presets, temporizador, sequências e offline. O Studio é um espaço de criação sonora/musical com Player simples e Modo Studio.
+Esta versão cria uma frente separada do SynthLab Lite. O Lite continua simples: presets, temporizador, sequências e offline. O Studio é um espaço de criação sonora/musical com Player simples, Modo Studio, teclado, controladores e gravação interna.
 
 Inclui:
 - Player: preset rápido, temporizador opcional, sequências programadas.
 - Studio: 3 camadas sonoras, Pad XY, modulações, filtros, panorama e painel "A ouvir agora".
-- Modulações: tom contínuo + pulso, tremolo, vibrato leve, filtro oscilante e panorama automático.
+- Modulações: tom contínuo + pulso, tremolo, vibrato, filtro oscilante e panorama automático.
+- Teclado: notas, acordes expandidos, voicing fechado/aberto/largo, inversões, arpegiador, strum/espalhar acorde, vibrato cents, envelope e efeitos diretos.
+- Gravação interna: grava o som gerado pela app, incluindo camadas, teclado, acordes, arpejos, vibrato, filtros, panorama e sequências.
+- Exportação da gravação em ficheiro de áudio quando o browser suporta MediaRecorder, normalmente WebM/Opus.
 - Sequências: Noturna Alargada, Reset de Ansiedade, Foco Profundo e Meditação de Transição.
 - Aceita pulsos decimais como 0.1 e 0.5, bem como 0,1 e 0,5.
 - PWA/offline via service-worker.js.
@@ -15,13 +18,16 @@ Inclui:
 Nota de rigor:
 As descrições de efeitos são simbólicas, subjetivas e experienciais. Não são prova científica, diagnóstico, tratamento, cura ou prevenção. Usar volume baixo e parar em caso de desconforto.
 
+Nota sobre gravação:
+A gravação desta versão capta o áudio interno gerado no Web Audio da própria app. Não grava microfone. Não grava outras apps, YouTube, Spotify ou áudio do sistema. Para gravar música externa misturada com SynthLab será necessário um módulo futuro de importação/mistura de ficheiros ou gravação do sistema fora da PWA.
+
 Publicação no GitHub Pages:
 Carregar todos os ficheiros da pasta para a raiz do repositório:
 index.html, app.js, style.css, presets.js, manifest.json, service-worker.js, limpar_cache.html, icons/.
 Depois abrir:
 /limpar_cache.html
 ou
-/index.html?v=studio1
+/index.html?v=studio1_3
 
 Uso local offline:
 1. Descompactar a pasta.
@@ -29,8 +35,9 @@ Uso local offline:
 3. Executar: py -m http.server 8000
 4. Abrir: http://localhost:8000
 
-
-Atualização v1.1:
-- Modo Teclado com notas, acordes, arpegiador e presets de modelação.
-- Controlo por touch, touchpad/rato, teclado do PC, MIDI quando suportado e movimento do dispositivo quando autorizado.
-- Touchpad de controladores com mapeamento explícito para frequência, pulso, filtro, panorama e intensidade.
+Atualização v1.3:
+- Adicionado painel de gravação interna no topo.
+- Botões Gravar, Parar gravação e Guardar áudio.
+- A gravação capta camadas Studio, Player, sequências, teclado, acordes, arpejador e efeitos internos.
+- Formato de gravação escolhido conforme suporte do browser: WebM/Opus ou alternativa suportada.
+- Mantém acordes expandidos, voicings, inversões, arpegiador, strum, vibrato, tremolo, filtro, panorama e presets de modelação.

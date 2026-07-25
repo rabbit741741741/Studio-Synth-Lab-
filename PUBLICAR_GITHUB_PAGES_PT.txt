@@ -1,9 +1,8 @@
-Publicar SynthLab Studio v1.1 no GitHub Pages
+Publicar SynthLab Studio v1.3 no GitHub Pages
 
-1. Criar novo repositório recomendado:
-   SynthLab_Studio_PWA_v1
+1. Criar ou abrir o repositório do SynthLab Studio.
 
-2. Fazer upload dos ficheiros soltos na raiz:
+2. Substituir TODOS os ficheiros na raiz do repositório por estes ficheiros:
    index.html
    app.js
    style.css
@@ -15,18 +14,24 @@ Publicar SynthLab Studio v1.1 no GitHub Pages
    LEIA-ME_PT.txt
    PUBLICAR_GITHUB_PAGES_PT.txt
 
-3. Settings -> Pages:
+3. Confirmar que o index.html está na raiz, não dentro de uma pasta.
+
+4. Fazer Commit changes.
+
+5. Em Settings > Pages, usar:
    Source: Deploy from a branch
    Branch: main
    Folder: /root
 
-4. Esperar deploy.
-
-5. Abrir primeiro:
+6. Depois de o deploy terminar, abrir primeiro:
    https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/limpar_cache.html
 
-6. Depois abrir:
-   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1_1
+7. Depois abrir:
+   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1_3
 
-7. Para instalar no PC/Android:
-   Chrome/Edge -> Instalar app / Adicionar ao ecrã principal.
+8. Para confirmar a versão, deve aparecer:
+   SynthLab Studio v1.3
+   v1.3 carregada
+   e o painel de gravação com Gravar / Parar gravação / Guardar áudio.
+
+9. Se no PC/Android continuar a aparecer versão antiga, remover a app instalada e repetir limpar_cache.html.

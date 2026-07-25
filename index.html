@@ -4,16 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>SynthLab Studio v1.1</title>
-  <link rel="manifest" href="manifest.json?v=studio1_1" />
-  <link rel="stylesheet" href="style.css?v=studio1_1" />
+  <title>SynthLab Studio v1.3</title>
+  <link rel="manifest" href="manifest.json?v=studio1_3" />
+  <link rel="stylesheet" href="style.css?v=studio1_3" />
 </head>
 <body>
   <header class="app-header">
     <div>
-      <p class="eyebrow">SynthLab Studio v1.1</p>
+      <p class="eyebrow">SynthLab Studio v1.3</p>
       <h1>Creative Space</h1>
-      <p class="subtitle">Player simples + Studio, teclado, acordes, arpejos e controladores sem overcrowding.</p>
+      <p class="subtitle">Player simples + Studio, teclado, acordes avançados, arpejos, vibrato, efeitos, controladores e gravação interna sem overcrowding.</p>
     </div>
     <div class="header-actions">
       <button id="playStopBtn" class="primary big">Iniciar</button>
@@ -26,7 +26,7 @@
       <div class="now-topline">
         <span class="status-dot" id="statusDot"></span>
         <span id="transportState">Parado</span>
-        <span class="version-pill">v1.1 carregada</span>
+        <span class="version-pill">v1.3 carregada</span>
       </div>
       <h2>A ouvir agora</h2>
       <div id="nowSummary" class="now-summary">Nenhum som ativo. Carrega em Iniciar.</div>
@@ -36,6 +36,13 @@
         <input id="masterGain" type="range" min="0" max="0.9" step="0.01" value="0.35" />
         <span id="masterValue">35%</span>
       </div>
+      <div class="record-row" aria-label="Gravação interna do SynthLab">
+        <button id="recordStartBtn" class="secondary">Gravar</button>
+        <button id="recordStopBtn" class="ghost" disabled>Parar gravação</button>
+        <span id="recordStatus">Gravação: parada</span>
+        <a id="recordSaveLink" class="buttonlike hidden" download="synthlab-studio-gravacao.webm">Guardar áudio</a>
+      </div>
+      <p class="hint record-hint">Grava apenas o som gerado pela app, não o microfone. Formato normal: WebM/Opus quando suportado pelo browser.</p>
     </section>
 
     <nav class="mode-tabs" aria-label="Modos principais">
@@ -95,6 +102,12 @@
           <p class="hint" id="timerHint">Desligado: a reprodução fica indefinida.</p>
         </article>
       </div>
+
+      <article class="card">
+        <h3>Gravação interna</h3>
+        <p class="hint">A gravação capta o áudio interno do SynthLab Studio: camadas, teclado, acordes, arpejos, vibrato, tremolo, filtros, panorama e sequências. Não usa microfone.</p>
+        <p class="hint">Fluxo simples: carregar em <strong>Gravar</strong>, tocar/criar som, carregar em <strong>Parar gravação</strong> e depois <strong>Guardar áudio</strong>.</p>
+      </article>
 
       <details class="card details-card" open>
         <summary>Sequência programada</summary>
@@ -214,18 +227,39 @@
         </article>
 
         <article class="card">
-          <h3>Acordes, arpejos e presets de modelação</h3>
+          <h3>Acordes, arpejos, vibrato e efeitos</h3>
           <div class="form-grid">
             <label>Acorde
               <select id="kbdChord">
                 <option value="single">Nota única</option>
                 <option value="major">Maior</option>
                 <option value="minor">Menor</option>
+                <option value="dim">Diminuto</option>
+                <option value="aug">Aumentado</option>
                 <option value="sus2">Sus2</option>
                 <option value="sus4">Sus4</option>
                 <option value="power">Power</option>
                 <option value="maj7">Maior 7</option>
+                <option value="dom7">Dominante 7</option>
                 <option value="min7">Menor 7</option>
+                <option value="min9">Menor 9</option>
+                <option value="add9">Add9</option>
+                <option value="octave">Oitavas</option>
+              </select>
+            </label>
+            <label>Voz / abertura
+              <select id="kbdVoicing">
+                <option value="closed">Fechado</option>
+                <option value="open">Aberto</option>
+                <option value="wide">Largo</option>
+              </select>
+            </label>
+            <label>Inversão
+              <select id="kbdInversion">
+                <option value="0">0 — raiz</option>
+                <option value="1">1ª inversão</option>
+                <option value="2">2ª inversão</option>
+                <option value="3">3ª inversão</option>
               </select>
             </label>
             <label>Modelação do teclado
@@ -235,7 +269,20 @@
                 <option value="focus741">741 + 15 — foco/escrita</option>
                 <option value="witness963">963 + 0.5 — testemunha</option>
                 <option value="texture417">417 + filtro — textura</option>
+                <option value="vibratoLead">Vibrato expressivo</option>
+                <option value="tremoloPulse">Tremolo rítmico</option>
+                <option value="spacePan">Espaço estéreo</option>
                 <option value="dry">Sem modelação forte</option>
+              </select>
+            </label>
+            <label>Efeito direto
+              <select id="kbdEffectType">
+                <option value="continuous_plus_pulse">Pulso/acento</option>
+                <option value="tremolo">Tremolo</option>
+                <option value="vibrato">Vibrato</option>
+                <option value="filter_sweep">Filtro oscilante</option>
+                <option value="pan_motion">Panorama automático</option>
+                <option value="static">Sem efeito</option>
               </select>
             </label>
             <label>Nível teclado
@@ -243,6 +290,25 @@
             </label>
             <label>Filtro Hz
               <input id="kbdFilter" type="range" min="250" max="10000" step="10" value="2600" />
+            </label>
+            <label>Velocidade efeito Hz
+              <input id="kbdEffectRate" type="range" min="0.1" max="40" step="0.1" value="0.1" />
+            </label>
+            <label>Profundidade efeito
+              <input id="kbdEffectDepth" type="range" min="0" max="0.95" step="0.01" value="0.25" />
+            </label>
+            <label>Vibrato cents
+              <input id="kbdVibratoCents" type="range" min="0" max="80" step="1" value="18" />
+            </label>
+            <label>Ataque / Release
+              <select id="kbdEnvelope">
+                <option value="fast">Rápido</option>
+                <option value="soft" selected>Suave</option>
+                <option value="pad">Pad lento</option>
+              </select>
+            </label>
+            <label>Espalhar acorde
+              <input id="kbdStrumMs" type="range" min="0" max="180" step="5" value="0" />
             </label>
           </div>
           <div class="arp-panel">
@@ -266,7 +332,15 @@
               </select>
             </label>
           </div>
-          <div id="kbdExplain" class="explain-box small-explain">Escolhe uma nota/acorde para ouvir. A modelação define pulso, filtro, panorama e movimento.</div>
+          <div class="effect-chips" aria-label="Efeitos rápidos do teclado">
+            <button class="chip" data-kbd-effect="static">Seco</button>
+            <button class="chip" data-kbd-effect="vibrato">Vibrato</button>
+            <button class="chip" data-kbd-effect="tremolo">Tremolo</button>
+            <button class="chip" data-kbd-effect="filter_sweep">Filtro</button>
+            <button class="chip" data-kbd-effect="pan_motion">Espaço</button>
+          </div>
+          <button id="testChordBtn" class="secondary full-width" type="button">Testar acorde</button>
+          <div id="kbdExplain" class="explain-box small-explain">Escolhe uma nota/acorde para ouvir. A modelação define pulso, vibrato, filtro, panorama e movimento.</div>
         </article>
       </div>
     </section>
@@ -340,7 +414,7 @@
     <span>Offline-first PWA · sem login · sem microfone · sem telemetria própria</span>
   </footer>
 
-  <script src="presets.js?v=studio1_1"></script>
-  <script src="app.js?v=studio1_1"></script>
+  <script src="presets.js?v=studio1_3"></script>
+  <script src="app.js?v=studio1_3"></script>
 </body>
 </html>
