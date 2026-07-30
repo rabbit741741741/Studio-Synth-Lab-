@@ -1,62 +1,46 @@
-SynthLab Studio v1.7 — temporizador rápido + vídeo vertical local
+SynthLab Studio v1.7.1 — temporizador rápido + áudio universal
+
+Correção de direção:
+Esta versão não inclui modo Instagram, vídeo vertical, Reels nem qualquer gerador visual social. O objetivo é apenas gravar o som num formato fácil de reutilizar posteriormente.
 
 Base:
-Esta versão evolui diretamente da v1.5 e mantém o Player, Studio, teclado, acordes, arpejos, efeitos, controladores, MIDI, sequências, gravação interna e TXT/script de parâmetros.
+Evolui diretamente da v1.5/v1.7 e mantém Player, Studio, teclado, acordes, arpejos, efeitos, controladores, MIDI, sequências, temporizador rápido, gravação interna e TXT/script de parâmetros.
 
-Novidades v1.7:
-- temporizador rápido global no topo, acessível em qualquer modo;
-- opções Sem limite, 5, 10, 20, 30, 60 minutos e duração personalizada;
-- ativar, alterar ou desativar o temporizador durante a reprodução normal;
-- tempo restante visível no painel “A ouvir agora”;
-- temporizador rápido independente do sequenciador;
-- fade-out ao terminar;
-- se o temporizador terminar durante gravação de áudio, a gravação é finalizada corretamente;
-- exportação de vídeo vertical 9:16 com áudio interno embutido;
-- visuais Pulso, Onda e Minimal;
-- qualidades 720 × 1280 e 1080 × 1920;
-- tentativa de MP4 quando o browser suporta; fallback local para WebM;
-- opção de terminar o vídeo quando termina o temporizador rápido;
-- criação totalmente local, sem microfone, upload, conta ou telemetria própria.
+Gravação de áudio:
+- tenta primeiro M4A com codec AAC, quando o browser declara suporte a audio/mp4;
+- quando M4A/AAC não está disponível, grava WAV PCM estéreo;
+- não produz WebM de áudio;
+- não usa microfone;
+- não envia ficheiros para servidores;
+- não cria vídeo.
+
+Porquê estes formatos:
+- M4A/AAC é compacto e corresponde ao codec de áudio usado nas especificações de vídeo da Meta;
+- WAV é um formato PCM universal, reconhecido por editores de áudio e vídeo, mas produz ficheiros maiores;
+- para publicar no Instagram, o áudio continua a ter de ser associado a uma imagem ou vídeo na aplicação ou num editor. O SynthLab fornece apenas o ficheiro de som.
+
+Temporizador rápido:
+- Sem limite, 5, 10, 20, 30, 60 minutos ou duração personalizada;
+- independente do sequenciador;
+- contador em “A ouvir agora”;
+- fade-out no final;
+- finaliza corretamente uma gravação ativa.
 
 Funções preservadas:
-- Player com frequência base, pulso e modulação;
-- 3 camadas sonoras no Studio;
-- Pad XY;
+- 3 camadas sonoras;
 - teclado touch/rato/teclado físico;
 - acordes, voicings, inversões, strum e arpejador;
 - vibrato, tremolo, filtros e panorama;
-- MIDI e movimento, quando suportados pelo browser;
-- sequências programadas;
-- gravação de áudio interno;
+- MIDI e movimento, quando suportados;
+- sequências;
 - TXT legível + JSON/script da sessão;
-- PWA/offline via service worker.
+- PWA/offline.
 
-Uso do temporizador rápido:
-1. Abrir “⏱ Sem limite” no topo.
-2. Escolher uma duração ou introduzir minutos personalizados.
-3. Iniciar a reprodução.
-4. O tempo restante aparece em “A ouvir agora”.
-5. Escolher “Sem limite” para desativar imediatamente.
-
-Uso do vídeo vertical:
-1. Iniciar o som pretendido.
-2. No Player, abrir “Vídeo vertical / Reels”.
-3. Escolher visual e qualidade.
-4. Carregar em “Gravar vídeo”.
-5. Carregar em “Parar vídeo” ou deixar o temporizador terminar.
-6. Carregar em “Guardar vídeo”.
-
-Compatibilidade do vídeo:
-O formato depende do browser e do dispositivo. A app tenta MP4/H.264/AAC quando MediaRecorder declara suporte. Quando isso não está disponível, cria WebM. Não é usada conversão online nem biblioteca externa pesada.
-
-Nota de rigor:
-As descrições de efeitos são simbólicas, subjetivas e experienciais. O SynthLab não é dispositivo médico, não diagnostica, não trata, não cura e não previne doenças. Usar volume baixo e interromper em caso de desconforto.
+Nota sobre WAV:
+WAV é descomprimido e pode ocupar aproximadamente 10 MB por minuto em estéreo a 44,1 kHz/16 bit. Para sessões muito longas, M4A/AAC é preferível quando disponível.
 
 Publicação no GitHub Pages:
-Carregar todos os ficheiros e a pasta icons/ para a raiz do repositório. Depois abrir /limpar_cache.html e, por fim, /?v=studio1_7.
+Carregar todos os ficheiros e icons/ na raiz. Abrir /limpar_cache.html e depois /?v=studio1_7_1.
 
-Uso local:
-1. Descompactar.
-2. Abrir terminal na pasta.
-3. Executar: py -m http.server 8000
-4. Abrir: http://localhost:8000/?v=studio1_7
+Nota de rigor:
+As descrições de efeitos são simbólicas, subjetivas e experienciais. O SynthLab não é dispositivo médico. Usar volume baixo e interromper em caso de desconforto.

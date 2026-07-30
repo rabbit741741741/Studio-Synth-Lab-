@@ -346,27 +346,6 @@ kbd {
 .quick-custom-row { display: grid; grid-template-columns: 1fr auto; gap: .55rem; align-items: end; }
 .timer-live { display: inline-block; margin-top: .35rem; color: var(--green); font-weight: 700; }
 
-/* v1.7 — exportação social vertical */
-.social-export-grid { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 18px; margin-top: 14px; align-items: start; }
-.social-preview-wrap { width: min(100%, 240px); margin: 0 auto; }
-#socialCanvas {
-  display: block;
-  width: 100%;
-  aspect-ratio: 9 / 16;
-  border-radius: 18px;
-  border: 1px solid rgba(197,160,89,.35);
-  background: #000;
-  box-shadow: 0 14px 38px rgba(0,0,0,.42);
-}
-.social-export-controls { min-width: 0; }
-.social-actions { display: flex; gap: .55rem; flex-wrap: wrap; align-items: center; margin: .85rem 0 .35rem; }
-.social-actions a { text-decoration: none; }
-.social-timer-check { margin-top: .8rem; }
-
-@media (max-width: 850px) {
-  .social-export-grid { grid-template-columns: 1fr; }
-  .social-preview-wrap { width: min(220px, 75vw); }
-}
 @media (max-width: 620px) {
   .quick-timer { flex: 1 1 100%; }
   .quick-timer > summary { text-align: center; }

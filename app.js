@@ -1,5 +1,5 @@
-/* SynthLab Studio v1.7 — temporizador rápido + exportação social vertical */
-const APP_VERSION = '1.7';
+/* SynthLab Studio v1.7.1 — temporizador rápido + gravação M4A/AAC ou WAV */
+const APP_VERSION = '1.7.1';
 const SR = 44100;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const qs = (sel, root = document) => root.querySelector(sel);
@@ -100,15 +100,14 @@ const state = {
   recordStartedAt: 0,
   isRecording: false,
   recordMimeType: '',
+  recordExtension: '',
+  recordingMode: '',
+  wavProcessor: null,
+  wavSilentGain: null,
+  wavBuffersL: [],
+  wavBuffersR: [],
+  wavLength: 0,
   lastSessionLog: {},
-  videoRecorder: null,
-  videoChunks: [],
-  videoUrl: null,
-  videoMimeType: '',
-  videoStream: null,
-  videoRaf: null,
-  videoStartedAt: 0,
-  isVideoRecording: false,
   isPlaying: false,
   sequenceMode: false,
   sequenceIndex: 0,
@@ -423,7 +422,6 @@ function stopPlayback({ reason = 'user_stop', finalizeTimedExports = false } = {
   }
   if (finalizeTimedExports) {
     if (state.isRecording) stopRecording();
-    if (state.isVideoRecording && qs('#socialStopWithTimer')?.checked) stopSocialVideo('timer_finished');
   }
   updateUI();
 }
@@ -739,7 +737,7 @@ function revokeRecordTextUrl() {
 
 function buildRecordTextDownload(baseName) {
   revokeRecordTextUrl();
-  const session = finalizeRecordSession(`${baseName}.${state.recordMimeType?.includes('mp4') ? 'm4a' : 'webm'}`);
+  const session = finalizeRecordSession(`${baseName}.${state.recordExtension || 'wav'}`);
   if (!session) return;
   const text = createSessionText(session);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -762,8 +760,6 @@ function triggerSaveBoth() {
 function getRecordingMimeType() {
   if (!window.MediaRecorder) return '';
   const candidates = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
     'audio/mp4;codecs=mp4a.40.2',
     'audio/mp4'
   ];
@@ -782,83 +778,189 @@ function updateRecorderUI() {
   stopBtn.disabled = !state.isRecording;
   if (state.isRecording) {
     const elapsed = state.ctx ? Math.max(0, Math.floor(state.ctx.currentTime - state.recordStartedAt)) : 0;
-    status.textContent = `Gravação: ativa · ${secondsToClock(elapsed)} · ${state.recordMimeType || 'formato automático'} · parâmetros a registar`;
+    const format = state.recordExtension === 'm4a' ? 'M4A/AAC' : 'WAV PCM';
+    status.textContent = `Gravação: ativa · ${secondsToClock(elapsed)} · ${format} · parâmetros a registar`;
   } else {
-    status.textContent = state.recordUrl ? 'Gravação pronta: guardar áudio e parâmetros TXT.' : 'Gravação: parada';
+    const format = state.recordExtension === 'm4a' ? 'M4A/AAC' : state.recordExtension === 'wav' ? 'WAV PCM' : '';
+    status.textContent = state.recordUrl ? `Gravação pronta em ${format}: guardar áudio e parâmetros TXT.` : 'Gravação: parada · M4A/AAC preferencial, WAV alternativo';
   }
   audioLink.classList.toggle('hidden', !state.recordUrl);
   txtLink?.classList.toggle('hidden', !state.recordTextUrl);
   bothBtn?.classList.toggle('hidden', !(state.recordUrl && state.recordTextUrl));
 }
 
-async function startRecording() {
-  const status = qs('#recordStatus');
-  if (!window.MediaRecorder) {
-    if (status) status.textContent = 'Gravação não suportada neste browser.';
-    return;
-  }
-  await ensureAudio();
-  if (!state.recDest) {
-    if (status) status.textContent = 'Destino de gravação indisponível.';
-    return;
-  }
-  if (state.isRecording) return;
+function revokeRecordAudioUrl() {
   if (state.recordUrl) {
-    URL.revokeObjectURL(state.recordUrl);
+    try { URL.revokeObjectURL(state.recordUrl); } catch {}
     state.recordUrl = null;
   }
+}
+
+function makeRecordingBaseName() {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  return `synthlab-studio-${stamp}`;
+}
+
+function finishRecordedBlob(blob, extension, mimeType, reason = 'user_stop') {
+  revokeRecordAudioUrl();
+  state.recordMimeType = mimeType;
+  state.recordExtension = extension;
+  state.recordUrl = URL.createObjectURL(blob);
+  const baseName = makeRecordingBaseName();
+  state.recordBaseName = baseName;
+  const link = qs('#recordSaveLink');
+  if (link) {
+    link.href = state.recordUrl;
+    link.download = `${baseName}.${extension}`;
+  }
+  logSessionEvent('recording_stop', { reason, audioExtension: extension, mimeType });
+  state.isRecording = false;
+  state.recordingMode = '';
+  buildRecordTextDownload(baseName);
+  updateRecorderUI();
+}
+
+function writeAscii(view, offset, text) {
+  for (let i = 0; i < text.length; i += 1) view.setUint8(offset + i, text.charCodeAt(i));
+}
+
+function createWavBlob() {
+  const channels = 2;
+  const sampleRate = Math.round(state.ctx?.sampleRate || SR);
+  const frames = state.wavLength;
+  const bytesPerSample = 2;
+  const blockAlign = channels * bytesPerSample;
+  const dataBytes = frames * blockAlign;
+  const buffer = new ArrayBuffer(44 + dataBytes);
+  const view = new DataView(buffer);
+  writeAscii(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataBytes, true);
+  writeAscii(view, 8, 'WAVE');
+  writeAscii(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeAscii(view, 36, 'data');
+  view.setUint32(40, dataBytes, true);
+  let offset = 44;
+  for (let c = 0; c < state.wavBuffersL.length; c += 1) {
+    const left = state.wavBuffersL[c];
+    const right = state.wavBuffersR[c] || left;
+    for (let i = 0; i < left.length; i += 1) {
+      const l = clamp(left[i], -1, 1);
+      const r = clamp(right[i], -1, 1);
+      view.setInt16(offset, l < 0 ? l * 0x8000 : l * 0x7fff, true); offset += 2;
+      view.setInt16(offset, r < 0 ? r * 0x8000 : r * 0x7fff, true); offset += 2;
+    }
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function disconnectWavCapture() {
+  try { if (state.wavProcessor) state.master?.disconnect(state.wavProcessor); } catch {}
+  try { state.wavProcessor?.disconnect(); } catch {}
+  try { state.wavSilentGain?.disconnect(); } catch {}
+  if (state.wavProcessor) state.wavProcessor.onaudioprocess = null;
+  state.wavProcessor = null;
+  state.wavSilentGain = null;
+}
+
+function startWavRecording() {
+  const processor = state.ctx.createScriptProcessor(4096, 2, 2);
+  const silent = state.ctx.createGain();
+  silent.gain.value = 0;
+  state.wavBuffersL = [];
+  state.wavBuffersR = [];
+  state.wavLength = 0;
+  processor.onaudioprocess = (event) => {
+    if (!state.isRecording || state.recordingMode !== 'wav') return;
+    const input = event.inputBuffer;
+    const left = input.getChannelData(0);
+    const right = input.numberOfChannels > 1 ? input.getChannelData(1) : left;
+    state.wavBuffersL.push(new Float32Array(left));
+    state.wavBuffersR.push(new Float32Array(right));
+    state.wavLength += left.length;
+  };
+  state.master.connect(processor);
+  processor.connect(silent);
+  silent.connect(state.ctx.destination);
+  state.wavProcessor = processor;
+  state.wavSilentGain = silent;
+  state.recordMimeType = 'audio/wav';
+  state.recordExtension = 'wav';
+  state.recordingMode = 'wav';
+}
+
+async function startRecording() {
+  const status = qs('#recordStatus');
+  await ensureAudio();
+  if (state.isRecording) return;
+  revokeRecordAudioUrl();
   revokeRecordTextUrl();
   state.recordBaseName = '';
   state.recordChunks = [];
   state.recordMimeType = getRecordingMimeType();
+  state.recordExtension = state.recordMimeType ? 'm4a' : 'wav';
+  state.recordingMode = state.recordMimeType ? 'media' : 'wav';
   createRecordSession();
   try {
-    const opts = state.recordMimeType ? { mimeType: state.recordMimeType } : undefined;
-    state.recorder = new MediaRecorder(state.recDest.stream, opts);
-    state.recorder.ondataavailable = (ev) => {
-      if (ev.data && ev.data.size > 0) state.recordChunks.push(ev.data);
-    };
-    state.recorder.onerror = () => {
-      if (status) status.textContent = 'Erro durante a gravação.';
-      state.isRecording = false;
-      updateRecorderUI();
-    };
-    state.recorder.onstop = () => {
-      const type = state.recordMimeType || 'audio/webm';
-      const blob = new Blob(state.recordChunks, { type });
-      state.recordUrl = URL.createObjectURL(blob);
-      const link = qs('#recordSaveLink');
-      const ext = type.includes('mp4') ? 'm4a' : 'webm';
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const baseName = `synthlab-studio-${stamp}`;
-      state.recordBaseName = baseName;
-      if (link) {
-        link.href = state.recordUrl;
-        link.download = `${baseName}.${ext}`;
-      }
-      logSessionEvent('recording_stop', { reason: 'user_stop', audioExtension: ext });
-      state.isRecording = false;
-      buildRecordTextDownload(baseName);
-      updateRecorderUI();
-    };
-    state.recorder.start(250);
+    if (state.recordingMode === 'media') {
+      if (!state.recDest || !window.MediaRecorder) throw new Error('MediaRecorder indisponível');
+      state.recorder = new MediaRecorder(state.recDest.stream, { mimeType: state.recordMimeType });
+      state.recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) state.recordChunks.push(ev.data);
+      };
+      state.recorder.onerror = () => {
+        if (status) status.textContent = 'Erro durante a gravação M4A/AAC.';
+        state.isRecording = false;
+        state.recordingMode = '';
+        updateRecorderUI();
+      };
+      state.recorder.onstop = () => {
+        const blob = new Blob(state.recordChunks, { type: state.recordMimeType || 'audio/mp4' });
+        finishRecordedBlob(blob, 'm4a', state.recordMimeType || 'audio/mp4');
+      };
+    } else {
+      startWavRecording();
+    }
     state.recordStartedAt = state.ctx.currentTime;
     state.isRecording = true;
-    logSessionEvent('recording_start', { mimeType: state.recordMimeType || 'auto', initialState: captureSessionState() });
+    logSessionEvent('recording_start', {
+      mimeType: state.recordMimeType,
+      extension: state.recordExtension,
+      formatStrategy: state.recordExtension === 'm4a' ? 'M4A/AAC preferencial' : 'WAV PCM alternativo',
+      initialState: captureSessionState()
+    });
     updateRecorderUI();
+    if (state.recordingMode === 'media') state.recorder.start(250);
   } catch (err) {
-    if (status) status.textContent = 'Gravação bloqueada ou indisponível neste browser.';
+    disconnectWavCapture();
     state.isRecording = false;
+    state.recordingMode = '';
+    if (status) status.textContent = 'Gravação bloqueada ou indisponível neste browser.';
     updateRecorderUI();
   }
 }
 
-function stopRecording() {
-  if (!state.recorder || !state.isRecording) return;
-  try { state.recorder.stop(); }
-  catch {
-    state.isRecording = false;
-    updateRecorderUI();
+function stopRecording(reason = 'user_stop') {
+  if (!state.isRecording) return;
+  if (state.recordingMode === 'media' && state.recorder) {
+    try { state.recorder.stop(); }
+    catch {
+      state.isRecording = false;
+      state.recordingMode = '';
+      updateRecorderUI();
+    }
+    return;
+  }
+  if (state.recordingMode === 'wav') {
+    disconnectWavCapture();
+    const blob = createWavBlob();
+    finishRecordedBlob(blob, 'wav', 'audio/wav', reason);
   }
 }
 
@@ -957,8 +1059,6 @@ function updateUI(renderLayerText = true) {
 
   updateQuickTimerUI();
   updateRecorderUI();
-  updateSocialVideoUI();
-  if (!state.isVideoRecording) drawSocialFrame();
   updateXYVisual();
 }
 
@@ -1637,247 +1737,8 @@ function setupQuickTimer() {
   });
 }
 
-function getVideoMimeType() {
-  if (!window.MediaRecorder) return '';
-  const candidates = [
-    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-    'video/mp4',
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm'
-  ];
-  return candidates.find(type => MediaRecorder.isTypeSupported?.(type)) || '';
-}
-
-function setSocialCanvasSize() {
-  const canvas = qs('#socialCanvas');
-  if (!canvas) return;
-  const quality = qs('#socialQuality')?.value || '720';
-  canvas.width = quality === '1080' ? 1080 : 720;
-  canvas.height = quality === '1080' ? 1920 : 1280;
-}
-
-function socialText(ctx, text, x, y, size, weight = 500, align = 'center', alpha = 1) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = '#e0e0e0';
-  ctx.font = `${weight} ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
-  ctx.textAlign = align;
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, x, y);
-  ctx.restore();
-}
-
-function drawSocialFrame() {
-  const canvas = qs('#socialCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const w = canvas.width;
-  const h = canvas.height;
-  const now = state.ctx?.currentTime || performance.now() / 1000;
-  const l = state.layers[0];
-  const pulseHz = Math.max(0.01, parseDecimal(l?.pulseHz, 0.1));
-  const phase = (Math.sin(2 * Math.PI * pulseHz * now - Math.PI / 2) + 1) / 2;
-  const visual = qs('#socialVisual')?.value || 'pulse';
-
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, w, h);
-  const glow = ctx.createRadialGradient(w * .5, h * .42, 0, w * .5, h * .42, w * .72);
-  glow.addColorStop(0, 'rgba(46,139,87,0.16)');
-  glow.addColorStop(.5, 'rgba(197,160,89,0.08)');
-  glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
-
-  socialText(ctx, 'SYNTHLAB', w / 2, h * .10, Math.round(w * .055), 700, 'center', .92);
-  socialText(ctx, 'exploração sonora experimental', w / 2, h * .145, Math.round(w * .026), 400, 'center', .64);
-
-  if (visual === 'wave') {
-    const data = new Uint8Array(state.analyser?.fftSize || 2048);
-    if (state.analyser) state.analyser.getByteTimeDomainData(data);
-    else data.fill(128);
-    ctx.save();
-    ctx.lineWidth = Math.max(3, w * .006);
-    ctx.strokeStyle = '#c5a059';
-    ctx.shadowColor = 'rgba(197,160,89,.55)';
-    ctx.shadowBlur = w * .035;
-    ctx.beginPath();
-    const yMid = h * .45;
-    const amp = h * .12;
-    for (let i = 0; i < data.length; i += 4) {
-      const x = (i / (data.length - 1)) * w;
-      const y = yMid + ((data[i] - 128) / 128) * amp;
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.restore();
-  } else if (visual === 'minimal') {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(197,160,89,.45)';
-    ctx.lineWidth = Math.max(2, w * .003);
-    ctx.strokeRect(w * .16, h * .29, w * .68, h * .32);
-    ctx.restore();
-    socialText(ctx, `${fmtHz(l?.freq || 0)} Hz`, w / 2, h * .405, Math.round(w * .11), 700);
-    socialText(ctx, `pulso ${fmtHz(l?.pulseHz || 0)} Hz`, w / 2, h * .49, Math.round(w * .045), 500, 'center', .78);
-  } else {
-    const radius = w * (.13 + phase * .095);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(w / 2, h * .43, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(46,139,87,${.18 + phase * .28})`;
-    ctx.fill();
-    ctx.lineWidth = Math.max(4, w * .008);
-    ctx.strokeStyle = '#c5a059';
-    ctx.shadowColor = 'rgba(197,160,89,.65)';
-    ctx.shadowBlur = w * (.04 + phase * .025);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  socialText(ctx, `${fmtHz(l?.freq || 0)} Hz`, w / 2, h * .69, Math.round(w * .083), 700);
-  socialText(ctx, `Pulso ${fmtHz(l?.pulseHz || 0)} Hz`, w / 2, h * .755, Math.round(w * .038), 500, 'center', .76);
-  socialText(ctx, MOD_LABELS[l?.modType] || 'Som SynthLab', w / 2, h * .81, Math.round(w * .028), 400, 'center', .58);
-
-  let footer = 'sem limite';
-  if (state.timerDuration && state.isPlaying && !state.sequenceMode) footer = `restante ${secondsToClock(getTimerRemaining(now))}`;
-  else if (state.isVideoRecording && state.ctx) footer = `vídeo ${secondsToClock(state.ctx.currentTime - state.videoStartedAt)}`;
-  socialText(ctx, footer, w / 2, h * .91, Math.round(w * .027), 500, 'center', .68);
-}
-
-function socialAnimationLoop() {
-  if (!state.isVideoRecording) return;
-  drawSocialFrame();
-  updateSocialVideoUI();
-  state.videoRaf = requestAnimationFrame(socialAnimationLoop);
-}
-
-function revokeVideoUrl() {
-  if (state.videoUrl) {
-    try { URL.revokeObjectURL(state.videoUrl); } catch {}
-    state.videoUrl = null;
-  }
-}
-
-function updateSocialVideoUI() {
-  const start = qs('#socialStartBtn');
-  const stop = qs('#socialStopBtn');
-  const status = qs('#socialStatus');
-  const save = qs('#socialSaveLink');
-  if (!start || !stop || !status || !save) return;
-  start.disabled = state.isVideoRecording;
-  stop.disabled = !state.isVideoRecording;
-  save.classList.toggle('hidden', !state.videoUrl);
-  if (state.isVideoRecording) {
-    const elapsed = state.ctx ? Math.max(0, state.ctx.currentTime - state.videoStartedAt) : 0;
-    status.textContent = `Vídeo: a gravar · ${secondsToClock(elapsed)} · ${state.videoMimeType || 'formato automático'}`;
-  } else if (state.videoUrl) {
-    status.textContent = `Vídeo pronto para guardar · ${state.videoMimeType.includes('mp4') ? 'MP4' : 'WebM'}.`;
-  } else {
-    status.textContent = 'Vídeo: parado. Inicia primeiro o som que queres exportar.';
-  }
-}
-
-async function startSocialVideo() {
-  const status = qs('#socialStatus');
-  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
-    if (status) status.textContent = 'Vídeo não suportado neste browser.';
-    return;
-  }
-  if (!state.isPlaying && state.voices.length === 0) {
-    if (status) status.textContent = 'Inicia primeiro a reprodução ou toca notas antes de gravar o vídeo.';
-    return;
-  }
-  await ensureAudio();
-  if (!state.recDest?.stream?.getAudioTracks().length) {
-    if (status) status.textContent = 'Fluxo de áudio interno indisponível.';
-    return;
-  }
-  if (state.isVideoRecording) return;
-  revokeVideoUrl();
-  setSocialCanvasSize();
-  drawSocialFrame();
-  const canvas = qs('#socialCanvas');
-  const canvasStream = canvas.captureStream(30);
-  const stream = new MediaStream([
-    ...canvasStream.getVideoTracks(),
-    ...state.recDest.stream.getAudioTracks()
-  ]);
-  state.videoStream = stream;
-  state.videoChunks = [];
-  state.videoMimeType = getVideoMimeType();
-  const quality = qs('#socialQuality')?.value || '720';
-  const opts = {
-    videoBitsPerSecond: quality === '1080' ? 8000000 : 4200000,
-    audioBitsPerSecond: 192000
-  };
-  if (state.videoMimeType) opts.mimeType = state.videoMimeType;
-  try {
-    state.videoRecorder = new MediaRecorder(stream, opts);
-    state.videoRecorder.ondataavailable = (ev) => {
-      if (ev.data && ev.data.size > 0) state.videoChunks.push(ev.data);
-    };
-    state.videoRecorder.onerror = () => {
-      state.isVideoRecording = false;
-      if (status) status.textContent = 'Erro durante a gravação de vídeo.';
-      updateSocialVideoUI();
-    };
-    state.videoRecorder.onstop = () => {
-      const type = state.videoMimeType || 'video/webm';
-      const blob = new Blob(state.videoChunks, { type });
-      state.videoUrl = URL.createObjectURL(blob);
-      const ext = type.includes('mp4') ? 'mp4' : 'webm';
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const link = qs('#socialSaveLink');
-      if (link) {
-        link.href = state.videoUrl;
-        link.download = `synthlab-studio-reels-${stamp}.${ext}`;
-      }
-      state.isVideoRecording = false;
-      if (state.videoRaf) cancelAnimationFrame(state.videoRaf);
-      state.videoStream?.getVideoTracks().forEach(track => track.stop());
-      state.videoStream = null;
-      logSessionEvent('social_video_stop', { format: type, extension: ext });
-      updateSocialVideoUI();
-    };
-    state.videoRecorder.start(250);
-    state.videoStartedAt = state.ctx.currentTime;
-    state.isVideoRecording = true;
-    logSessionEvent('social_video_start', { mimeType: state.videoMimeType || 'auto', quality, visual: qs('#socialVisual')?.value || 'pulse' });
-    socialAnimationLoop();
-    updateSocialVideoUI();
-  } catch (err) {
-    state.videoStream?.getVideoTracks().forEach(track => track.stop());
-    state.videoStream = null;
-    state.isVideoRecording = false;
-    if (status) status.textContent = 'O browser bloqueou este formato de vídeo. Experimenta outro browser/dispositivo.';
-    updateSocialVideoUI();
-  }
-}
-
-function stopSocialVideo(reason = 'user_stop') {
-  if (!state.videoRecorder || !state.isVideoRecording) return;
-  logSessionEvent('social_video_stop_requested', { reason });
-  try { state.videoRecorder.stop(); }
-  catch {
-    state.isVideoRecording = false;
-    updateSocialVideoUI();
-  }
-}
-
-function setupSocialVideo() {
-  qs('#socialStartBtn')?.addEventListener('click', startSocialVideo);
-  qs('#socialStopBtn')?.addEventListener('click', () => stopSocialVideo('user_stop'));
-  qs('#socialVisual')?.addEventListener('change', drawSocialFrame);
-  qs('#socialQuality')?.addEventListener('change', () => { setSocialCanvasSize(); drawSocialFrame(); });
-  setSocialCanvasSize();
-  drawSocialFrame();
-}
-
 function initEvents() {
   setupQuickTimer();
-  setupSocialVideo();
   qs('#playStopBtn').addEventListener('click', () => state.isPlaying ? stopPlayback() : startPlayback());
   qs('#panicBtn').addEventListener('click', panic);
   qs('#recordStartBtn')?.addEventListener('click', startRecording);
@@ -1899,7 +1760,7 @@ function initEvents() {
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js?v=studio1_7').catch(() => {});
+    navigator.serviceWorker.register('service-worker.js?v=studio1_7_1').catch(() => {});
   }
 }
 
