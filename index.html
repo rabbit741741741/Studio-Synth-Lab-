@@ -4,18 +4,40 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>SynthLab Studio v1.3</title>
-  <link rel="manifest" href="manifest.json?v=studio1_3" />
-  <link rel="stylesheet" href="style.css?v=studio1_3" />
+  <title>SynthLab Studio v1.7</title>
+  <link rel="manifest" href="manifest.json?v=studio1_7" />
+  <link rel="stylesheet" href="style.css?v=studio1_7" />
 </head>
 <body>
   <header class="app-header">
     <div>
-      <p class="eyebrow">SynthLab Studio v1.3</p>
+      <p class="eyebrow">SynthLab Studio v1.7</p>
       <h1>Creative Space</h1>
-      <p class="subtitle">Player simples + Studio, teclado, acordes avançados, arpejos, vibrato, efeitos, controladores e gravação interna sem overcrowding.</p>
+      <p class="subtitle">Player e Studio com temporizador rápido, teclado, acordes, arpejos, efeitos, MIDI, gravação interna, TXT/script e vídeo vertical local.</p>
     </div>
     <div class="header-actions">
+      <details id="quickTimerDetails" class="quick-timer">
+        <summary id="quickTimerSummary" class="buttonlike" aria-label="Temporizador rápido">⏱ Sem limite</summary>
+        <div class="quick-timer-popover">
+          <strong>Temporizador rápido</strong>
+          <p class="hint">Aplica-se à reprodução normal atual, sem abrir o sequenciador.</p>
+          <div class="quick-timer-grid" aria-label="Durações rápidas">
+            <button type="button" data-quick-min="0">Sem limite</button>
+            <button type="button" data-quick-min="5">5 min</button>
+            <button type="button" data-quick-min="10">10 min</button>
+            <button type="button" data-quick-min="20">20 min</button>
+            <button type="button" data-quick-min="30">30 min</button>
+            <button type="button" data-quick-min="60">60 min</button>
+          </div>
+          <div class="quick-custom-row">
+            <label>Personalizado (min)
+              <input id="quickTimerCustomMinutes" type="number" min="1" max="1440" step="1" value="20" />
+            </label>
+            <button id="quickTimerApplyCustom" type="button" class="secondary">Aplicar</button>
+          </div>
+          <p id="quickTimerStatus" class="hint">Sem limite: a reprodução não para automaticamente.</p>
+        </div>
+      </details>
       <button id="playStopBtn" class="primary big">Iniciar</button>
       <button id="panicBtn" class="ghost">Silêncio</button>
     </div>
@@ -26,7 +48,7 @@
       <div class="now-topline">
         <span class="status-dot" id="statusDot"></span>
         <span id="transportState">Parado</span>
-        <span class="version-pill">v1.3 carregada</span>
+        <span class="version-pill">v1.7 carregada</span>
       </div>
       <h2>A ouvir agora</h2>
       <div id="nowSummary" class="now-summary">Nenhum som ativo. Carrega em Iniciar.</div>
@@ -41,8 +63,10 @@
         <button id="recordStopBtn" class="ghost" disabled>Parar gravação</button>
         <span id="recordStatus">Gravação: parada</span>
         <a id="recordSaveLink" class="buttonlike hidden" download="synthlab-studio-gravacao.webm">Guardar áudio</a>
+        <a id="recordSaveTxtLink" class="buttonlike hidden" download="synthlab-studio-parametros.txt">Guardar parâmetros TXT</a>
+        <button id="recordSaveBothBtn" class="secondary hidden" type="button">Guardar áudio + TXT</button>
       </div>
-      <p class="hint record-hint">Grava apenas o som gerado pela app, não o microfone. Formato normal: WebM/Opus quando suportado pelo browser.</p>
+      <p class="hint record-hint">Grava apenas o som gerado pela app, não o microfone. Ao parar, também é criado um TXT legível com parâmetros, alterações ao longo do tempo e bloco JSON para recriação futura.</p>
     </section>
 
     <nav class="mode-tabs" aria-label="Modos principais">
@@ -106,8 +130,46 @@
       <article class="card">
         <h3>Gravação interna</h3>
         <p class="hint">A gravação capta o áudio interno do SynthLab Studio: camadas, teclado, acordes, arpejos, vibrato, tremolo, filtros, panorama e sequências. Não usa microfone.</p>
-        <p class="hint">Fluxo simples: carregar em <strong>Gravar</strong>, tocar/criar som, carregar em <strong>Parar gravação</strong> e depois <strong>Guardar áudio</strong>.</p>
+        <p class="hint">Fluxo simples: carregar em <strong>Gravar</strong>, tocar/criar som, carregar em <strong>Parar gravação</strong> e depois guardar <strong>áudio</strong> e <strong>parâmetros TXT</strong>. O TXT inclui linha temporal e bloco JSON para recriação.</p>
       </article>
+
+      <details class="card details-card social-export-card">
+        <summary>Vídeo vertical / Reels</summary>
+        <div class="social-export-grid">
+          <div class="social-preview-wrap">
+            <canvas id="socialCanvas" width="720" height="1280" aria-label="Pré-visualização vertical do vídeo"></canvas>
+          </div>
+          <div class="social-export-controls">
+            <p class="hint">Cria localmente um vídeo vertical 9:16 com o áudio interno do SynthLab. Tenta MP4 quando o browser o permite e usa WebM como alternativa.</p>
+            <div class="form-grid">
+              <label>Visual
+                <select id="socialVisual">
+                  <option value="pulse">Pulso</option>
+                  <option value="wave">Onda</option>
+                  <option value="minimal">Minimal</option>
+                </select>
+              </label>
+              <label>Qualidade
+                <select id="socialQuality">
+                  <option value="720">720 × 1280 — leve</option>
+                  <option value="1080">1080 × 1920 — elevada</option>
+                </select>
+              </label>
+            </div>
+            <label class="inline-check social-timer-check">
+              <input id="socialStopWithTimer" type="checkbox" checked />
+              Terminar o vídeo quando acabar o temporizador rápido
+            </label>
+            <div class="social-actions">
+              <button id="socialStartBtn" type="button" class="secondary">Gravar vídeo</button>
+              <button id="socialStopBtn" type="button" class="ghost" disabled>Parar vídeo</button>
+              <a id="socialSaveLink" class="buttonlike hidden" download="synthlab-studio-reels.webm">Guardar vídeo</a>
+            </div>
+            <p id="socialStatus" class="hint">Vídeo: parado. Inicia primeiro o som que queres exportar.</p>
+            <p class="hint">Sem microfone, upload, conta ou conversão online. O formato final depende do suporte do browser/dispositivo.</p>
+          </div>
+        </div>
+      </details>
 
       <details class="card details-card" open>
         <summary>Sequência programada</summary>
@@ -224,6 +286,35 @@
           </div>
           <div id="musicalKeyboard" class="musical-keyboard" aria-label="Teclado cromático"></div>
           <p class="hint">Teclado do PC: A W S E D F T G Y H U J K. Usa Shift para subir uma oitava.</p>
+          <div class="pc-keyboard-tools" aria-label="Controlo por teclado do laptop">
+            <label class="inline-check"><input id="kbdPcCapture" type="checkbox" checked /> Capturar teclado do PC</label>
+            <button id="kbdFocusBtn" class="secondary" type="button">Ativar/focar teclado</button>
+            <button id="kbdReleaseBtn" class="secondary" type="button">Libertar notas</button>
+          </div>
+          <p id="kbdPcStatus" class="kbd-status">Captura do teclado do PC ativa.</p>
+          <details class="keyboard-shortcuts">
+            <summary>Atalhos do teclado do laptop</summary>
+            <div class="shortcut-grid">
+              <span><kbd>A W S E D F T G Y H U J K</kbd> notas</span>
+              <span><kbd>Shift</kbd> + nota: oitava acima</span>
+              <span><kbd>1-0</kbd> escolhem acordes</span>
+              <span><kbd>Z / X</kbd> oitava - / +</span>
+              <span><kbd>C</kbd> próximo acorde</span>
+              <span><kbd>I</kbd> próxima inversão</span>
+              <span><kbd>R</kbd> arpegiador on/off</span>
+              <span><kbd>L</kbd> manter arpejo</span>
+              <span><kbd>P</kbd> pulso/acento</span>
+              <span><kbd>V</kbd> vibrato</span>
+              <span><kbd>B</kbd> tremolo</span>
+              <span><kbd>N</kbd> filtro</span>
+              <span><kbd>M</kbd> espaço/panorama</span>
+              <span><kbd>O</kbd> seco</span>
+              <span><kbd>, / .</kbd> profundidade - / +</span>
+              <span><kbd>- / +</kbd> vibrato - / +</span>
+              <span><kbd>Espaço</kbd> testar acorde</span>
+              <span><kbd>Esc</kbd> libertar notas</span>
+            </div>
+          </details>
         </article>
 
         <article class="card">
@@ -414,7 +505,7 @@
     <span>Offline-first PWA · sem login · sem microfone · sem telemetria própria</span>
   </footer>
 
-  <script src="presets.js?v=studio1_3"></script>
-  <script src="app.js?v=studio1_3"></script>
+  <script src="presets.js?v=studio1_7"></script>
+  <script src="app.js?v=studio1_7"></script>
 </body>
 </html>

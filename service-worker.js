@@ -1,12 +1,12 @@
-/* SynthLab Studio v1.3 — cache/offline */
-const CACHE_NAME = 'synthlab-studio-v1-3-cache-20260725';
+/* SynthLab Studio v1.7 — cache/offline */
+const CACHE_NAME = 'synthlab-studio-v1-7-quick-timer-social-cache-20260730';
 const CORE_ASSETS = [
   './',
-  './index.html?v=studio1_3',
-  './style.css?v=studio1_3',
-  './presets.js?v=studio1_3',
-  './app.js?v=studio1_3',
-  './manifest.json?v=studio1_3',
+  './index.html?v=studio1_7',
+  './style.css?v=studio1_7',
+  './presets.js?v=studio1_7',
+  './app.js?v=studio1_7',
+  './manifest.json?v=studio1_7',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './limpar_cache.html'
@@ -30,6 +30,6 @@ self.addEventListener('fetch', (event) => {
       const copy = res.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
       return res;
-    }).catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html?v=studio1_3')))
+    }).catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html?v=studio1_7')))
   );
 });

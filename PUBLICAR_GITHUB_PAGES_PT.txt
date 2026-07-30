@@ -1,8 +1,8 @@
-Publicar SynthLab Studio v1.3 no GitHub Pages
+Publicar SynthLab Studio v1.7 no GitHub Pages
 
-1. Criar ou abrir o repositório do SynthLab Studio.
+1. Abrir o repositório do SynthLab Studio.
 
-2. Substituir TODOS os ficheiros na raiz do repositório por estes ficheiros:
+2. Substituir TODOS os ficheiros na raiz pelos conteúdos deste ZIP:
    index.html
    app.js
    style.css
@@ -14,24 +14,34 @@ Publicar SynthLab Studio v1.3 no GitHub Pages
    LEIA-ME_PT.txt
    PUBLICAR_GITHUB_PAGES_PT.txt
 
-3. Confirmar que o index.html está na raiz, não dentro de uma pasta.
+3. Confirmar que index.html está diretamente na raiz, não dentro de outra pasta.
 
 4. Fazer Commit changes.
 
-5. Em Settings > Pages, usar:
+5. Em Settings > Pages:
    Source: Deploy from a branch
    Branch: main
    Folder: /root
 
-6. Depois de o deploy terminar, abrir primeiro:
+6. Quando o deploy terminar, abrir primeiro:
    https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/limpar_cache.html
 
 7. Depois abrir:
-   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1_3
+   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1_7
 
-8. Para confirmar a versão, deve aparecer:
-   SynthLab Studio v1.3
-   v1.3 carregada
-   e o painel de gravação com Gravar / Parar gravação / Guardar áudio.
+8. Confirmar no topo:
+   SynthLab Studio v1.7
+   v1.7 carregada
+   ⏱ Sem limite
 
-9. Se no PC/Android continuar a aparecer versão antiga, remover a app instalada e repetir limpar_cache.html.
+9. Testes mínimos:
+   - Iniciar som e escolher temporizador de 5 min;
+   - confirmar tempo restante em “A ouvir agora”;
+   - escolher Sem limite e confirmar que o contador desaparece;
+   - gravar e guardar áudio + TXT;
+   - abrir Vídeo vertical / Reels;
+   - gravar alguns segundos e guardar MP4 ou WebM, conforme o browser;
+   - testar teclado, acordes, arpejo, efeitos, MIDI e sequências;
+   - ativar modo avião depois do primeiro carregamento e confirmar funcionamento offline.
+
+10. Se aparecer uma versão antiga, remover a PWA instalada, abrir limpar_cache.html e voltar a instalar.

@@ -1,43 +1,62 @@
-SynthLab Studio v1.3 — acordes avançados, vibrato, efeitos e gravação interna
+SynthLab Studio v1.7 — temporizador rápido + vídeo vertical local
 
-Objetivo:
-Esta versão cria uma frente separada do SynthLab Lite. O Lite continua simples: presets, temporizador, sequências e offline. O Studio é um espaço de criação sonora/musical com Player simples, Modo Studio, teclado, controladores e gravação interna.
+Base:
+Esta versão evolui diretamente da v1.5 e mantém o Player, Studio, teclado, acordes, arpejos, efeitos, controladores, MIDI, sequências, gravação interna e TXT/script de parâmetros.
 
-Inclui:
-- Player: preset rápido, temporizador opcional, sequências programadas.
-- Studio: 3 camadas sonoras, Pad XY, modulações, filtros, panorama e painel "A ouvir agora".
-- Modulações: tom contínuo + pulso, tremolo, vibrato, filtro oscilante e panorama automático.
-- Teclado: notas, acordes expandidos, voicing fechado/aberto/largo, inversões, arpegiador, strum/espalhar acorde, vibrato cents, envelope e efeitos diretos.
-- Gravação interna: grava o som gerado pela app, incluindo camadas, teclado, acordes, arpejos, vibrato, filtros, panorama e sequências.
-- Exportação da gravação em ficheiro de áudio quando o browser suporta MediaRecorder, normalmente WebM/Opus.
-- Sequências: Noturna Alargada, Reset de Ansiedade, Foco Profundo e Meditação de Transição.
-- Aceita pulsos decimais como 0.1 e 0.5, bem como 0,1 e 0,5.
-- PWA/offline via service-worker.js.
-- Página limpar_cache.html para remover cache antiga.
+Novidades v1.7:
+- temporizador rápido global no topo, acessível em qualquer modo;
+- opções Sem limite, 5, 10, 20, 30, 60 minutos e duração personalizada;
+- ativar, alterar ou desativar o temporizador durante a reprodução normal;
+- tempo restante visível no painel “A ouvir agora”;
+- temporizador rápido independente do sequenciador;
+- fade-out ao terminar;
+- se o temporizador terminar durante gravação de áudio, a gravação é finalizada corretamente;
+- exportação de vídeo vertical 9:16 com áudio interno embutido;
+- visuais Pulso, Onda e Minimal;
+- qualidades 720 × 1280 e 1080 × 1920;
+- tentativa de MP4 quando o browser suporta; fallback local para WebM;
+- opção de terminar o vídeo quando termina o temporizador rápido;
+- criação totalmente local, sem microfone, upload, conta ou telemetria própria.
+
+Funções preservadas:
+- Player com frequência base, pulso e modulação;
+- 3 camadas sonoras no Studio;
+- Pad XY;
+- teclado touch/rato/teclado físico;
+- acordes, voicings, inversões, strum e arpejador;
+- vibrato, tremolo, filtros e panorama;
+- MIDI e movimento, quando suportados pelo browser;
+- sequências programadas;
+- gravação de áudio interno;
+- TXT legível + JSON/script da sessão;
+- PWA/offline via service worker.
+
+Uso do temporizador rápido:
+1. Abrir “⏱ Sem limite” no topo.
+2. Escolher uma duração ou introduzir minutos personalizados.
+3. Iniciar a reprodução.
+4. O tempo restante aparece em “A ouvir agora”.
+5. Escolher “Sem limite” para desativar imediatamente.
+
+Uso do vídeo vertical:
+1. Iniciar o som pretendido.
+2. No Player, abrir “Vídeo vertical / Reels”.
+3. Escolher visual e qualidade.
+4. Carregar em “Gravar vídeo”.
+5. Carregar em “Parar vídeo” ou deixar o temporizador terminar.
+6. Carregar em “Guardar vídeo”.
+
+Compatibilidade do vídeo:
+O formato depende do browser e do dispositivo. A app tenta MP4/H.264/AAC quando MediaRecorder declara suporte. Quando isso não está disponível, cria WebM. Não é usada conversão online nem biblioteca externa pesada.
 
 Nota de rigor:
-As descrições de efeitos são simbólicas, subjetivas e experienciais. Não são prova científica, diagnóstico, tratamento, cura ou prevenção. Usar volume baixo e parar em caso de desconforto.
-
-Nota sobre gravação:
-A gravação desta versão capta o áudio interno gerado no Web Audio da própria app. Não grava microfone. Não grava outras apps, YouTube, Spotify ou áudio do sistema. Para gravar música externa misturada com SynthLab será necessário um módulo futuro de importação/mistura de ficheiros ou gravação do sistema fora da PWA.
+As descrições de efeitos são simbólicas, subjetivas e experienciais. O SynthLab não é dispositivo médico, não diagnostica, não trata, não cura e não previne doenças. Usar volume baixo e interromper em caso de desconforto.
 
 Publicação no GitHub Pages:
-Carregar todos os ficheiros da pasta para a raiz do repositório:
-index.html, app.js, style.css, presets.js, manifest.json, service-worker.js, limpar_cache.html, icons/.
-Depois abrir:
-/limpar_cache.html
-ou
-/index.html?v=studio1_3
+Carregar todos os ficheiros e a pasta icons/ para a raiz do repositório. Depois abrir /limpar_cache.html e, por fim, /?v=studio1_7.
 
-Uso local offline:
-1. Descompactar a pasta.
-2. Abrir CMD/Terminal dentro da pasta.
+Uso local:
+1. Descompactar.
+2. Abrir terminal na pasta.
 3. Executar: py -m http.server 8000
-4. Abrir: http://localhost:8000
-
-Atualização v1.3:
-- Adicionado painel de gravação interna no topo.
-- Botões Gravar, Parar gravação e Guardar áudio.
-- A gravação capta camadas Studio, Player, sequências, teclado, acordes, arpejador e efeitos internos.
-- Formato de gravação escolhido conforme suporte do browser: WebM/Opus ou alternativa suportada.
-- Mantém acordes expandidos, voicings, inversões, arpegiador, strum, vibrato, tremolo, filtro, panorama e presets de modelação.
+4. Abrir: http://localhost:8000/?v=studio1_7

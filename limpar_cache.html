@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Limpar cache — SynthLab Studio v1.3</title>
+  <title>Limpar cache — SynthLab Studio v1.7</title>
   <style>
     body{background:#000;color:#e0e0e0;font-family:system-ui;margin:0;padding:28px;line-height:1.5}
     .box{max-width:720px;margin:auto;background:#121212;border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:22px}
@@ -12,10 +12,10 @@
 </head>
 <body>
   <div class="box">
-    <h1>SynthLab Studio v1.3</h1>
+    <h1>SynthLab Studio v1.7</h1>
     <p>A limpar service workers e caches antigas...</p>
     <p id="status">A iniciar.</p>
-    <p><a href="index.html?v=studio1_3">Abrir manualmente a v1.3</a></p>
+    <p><a href="index.html?v=studio1_7">Abrir manualmente a v1.7</a></p>
   </div>
   <script>
     async function limpar(){
@@ -29,8 +29,8 @@
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
         }
-        status.textContent = 'Cache limpa. A abrir v1.3...';
-        setTimeout(() => location.href = 'index.html?v=studio1_3_' + Date.now(), 900);
+        status.textContent = 'Cache limpa. A abrir v1.7...';
+        setTimeout(() => location.href = 'index.html?v=studio1_7_' + Date.now(), 900);
       } catch (e) {
         status.textContent = 'Não foi possível limpar automaticamente. Usa o link manual.';
       }
