@@ -1,5 +1,5 @@
-/* SynthLab Studio v1.7.1 — temporizador rápido + gravação M4A/AAC ou WAV */
-const APP_VERSION = '1.7.1';
+/* SynthLab Studio v1.7.2 — continuidade móvel + segundo par opcional */
+const APP_VERSION = '1.7.2';
 const SR = 44100;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const qs = (sel, root = document) => root.querySelector(sel);
@@ -115,6 +115,9 @@ const state = {
   timerStartedAt: 0,
   timerDuration: 0,
   raf: null,
+  wakeLock: null,
+  wakeLockWanted: true,
+  continuityMessage: '',
   nodes: [],
   layers: [
     { name: 'Canal 1', active: true, freq: 528, waveform: 'sine', level: 0.45, pan: 0, pulseHz: 6, pulseDepth: 0.45, modType: 'continuous_plus_pulse', filterCutoff: 1800 },
@@ -182,6 +185,24 @@ function fillSelects() {
     opt.textContent = p.label;
     if (p.hz === 6) opt.selected = true;
     pulseSelect.appendChild(opt);
+  });
+
+  const baseSelect2 = qs('#playerBase2');
+  PRESETS.bases.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.hz;
+    opt.textContent = b.label;
+    if (b.hz === 639) opt.selected = true;
+    baseSelect2?.appendChild(opt);
+  });
+
+  const pulseSelect2 = qs('#playerPulse2');
+  PRESETS.pulses.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.hz;
+    opt.textContent = p.label;
+    if (p.hz === 0.5) opt.selected = true;
+    pulseSelect2?.appendChild(opt);
   });
 
   const seqSelect = qs('#sequencePresetSelect');
@@ -311,7 +332,10 @@ function onLayerChange(e) {
   const key = e.target.dataset.layer;
   const layer = state.layers[i];
   if (!layer) return;
-  if (key === 'active') layer.active = e.target.checked;
+  if (key === 'active') {
+    layer.active = e.target.checked;
+    if (i === 1 && qs('#secondaryPairEnabled')) qs('#secondaryPairEnabled').checked = layer.active;
+  }
   else if (key === 'waveform' || key === 'modType') layer[key] = e.target.value;
   else layer[key] = parseDecimal(e.target.value, layer[key]);
   if (key === 'freq') layer.freq = clamp(layer.freq, 20, 18000);
@@ -334,8 +358,73 @@ async function ensureAudio() {
     state.master.connect(state.ctx.destination);
     state.master.connect(state.recDest);
     state.master.connect(state.analyser);
+    state.ctx.addEventListener('statechange', () => {
+      logSessionEvent('audio_context_state_change', { state: state.ctx.state });
+      updateContinuityUI();
+    });
   }
-  if (state.ctx.state === 'suspended') await state.ctx.resume();
+  if (state.ctx.state === 'suspended' || state.ctx.state === 'interrupted') await state.ctx.resume();
+}
+
+function setParamTarget(param, value, time, constant = 0.03) {
+  if (!param || !Number.isFinite(value)) return;
+  try {
+    param.cancelScheduledValues(time);
+    param.setTargetAtTime(value, time, constant);
+  } catch {
+    try { param.value = value; } catch {}
+  }
+}
+
+function updateLayerNodeFromState(layer, n, immediate = false) {
+  if (!state.ctx || !n) return;
+  const t = state.ctx.currentTime;
+  const tc = immediate ? 0.003 : 0.025;
+  const depth = clamp(layer.pulseDepth, 0, 0.95);
+  const activeLevel = layer.active ? clamp(layer.level, 0, 0.8) : 0;
+
+  if (n.osc.type !== layer.waveform) n.osc.type = layer.waveform;
+  setParamTarget(n.lfo.frequency, Math.max(layer.pulseHz, 0.01), t, tc);
+
+  let baseGain = activeLevel;
+  let ampAmount = 0;
+  let baseFrequency = layer.freq;
+  let frequencyAmount = 0;
+  let baseCutoff = clamp(layer.filterCutoff, 120, 12000);
+  let cutoffAmount = 0;
+  let basePan = clamp(layer.pan, -1, 1);
+  let panAmount = 0;
+
+  if (layer.modType === 'continuous_plus_pulse') {
+    baseGain = activeLevel * (1 - depth / 2);
+    ampAmount = activeLevel * (depth / 2);
+  } else if (layer.modType === 'tremolo') {
+    baseGain = activeLevel * (1 - 0.425 * depth);
+    ampAmount = activeLevel * (0.425 * depth);
+  } else if (layer.modType === 'vibrato') {
+    const cents = 20 * depth;
+    frequencyAmount = layer.freq * (Math.pow(2, cents / 1200) - 1);
+  } else if (layer.modType === 'filter_sweep') {
+    baseGain = activeLevel * 0.9;
+    const centre = clamp(layer.filterCutoff * (1.35 + depth / 2), 180, 11500);
+    const desired = layer.filterCutoff * (0.8 + depth / 2);
+    baseCutoff = centre;
+    cutoffAmount = Math.max(0, Math.min(desired, centre - 120, 12000 - centre));
+  } else if (layer.modType === 'pan_motion') {
+    baseGain = activeLevel * 0.92;
+    panAmount = Math.min(depth, Math.max(0, 1 - Math.abs(basePan)));
+  }
+
+  setParamTarget(n.gain.gain, baseGain, t, tc);
+  setParamTarget(n.ampMod.gain, ampAmount, t, tc);
+  setParamTarget(n.osc.frequency, baseFrequency, t, tc);
+  setParamTarget(n.freqMod.gain, frequencyAmount, t, tc);
+  setParamTarget(n.filter.frequency, baseCutoff, t, tc);
+  setParamTarget(n.filterMod.gain, cutoffAmount, t, tc);
+  if (n.pan) {
+    setParamTarget(n.pan.pan, basePan, t, tc);
+    setParamTarget(n.panMod.gain, panAmount, t, tc);
+  }
 }
 
 function buildNodes() {
@@ -345,48 +434,162 @@ function buildNodes() {
     const gain = state.ctx.createGain();
     const filter = state.ctx.createBiquadFilter();
     const pan = state.ctx.createStereoPanner ? state.ctx.createStereoPanner() : null;
+    const lfo = state.ctx.createOscillator();
+    const ampMod = state.ctx.createGain();
+    const freqMod = state.ctx.createGain();
+    const filterMod = state.ctx.createGain();
+    const panMod = state.ctx.createGain();
+
     osc.type = layer.waveform;
-    osc.frequency.value = layer.freq;
+    lfo.type = 'sine';
     gain.gain.value = 0;
+    ampMod.gain.value = 0;
+    freqMod.gain.value = 0;
+    filterMod.gain.value = 0;
+    panMod.gain.value = 0;
     filter.type = 'lowpass';
-    filter.frequency.value = layer.filterCutoff;
     filter.Q.value = 0.8;
+
     osc.connect(gain);
     gain.connect(filter);
     if (pan) {
       filter.connect(pan);
       pan.connect(state.master);
-      pan.pan.value = layer.pan;
     } else {
       filter.connect(state.master);
     }
+
+    lfo.connect(ampMod);
+    ampMod.connect(gain.gain);
+    lfo.connect(freqMod);
+    freqMod.connect(osc.frequency);
+    lfo.connect(filterMod);
+    filterMod.connect(filter.frequency);
+    if (pan) {
+      lfo.connect(panMod);
+      panMod.connect(pan.pan);
+    }
+
+    const node = { osc, gain, filter, pan, lfo, ampMod, freqMod, filterMod, panMod, startTime: state.ctx.currentTime };
+    updateLayerNodeFromState(layer, node, true);
     osc.start();
-    return { osc, gain, filter, pan, startTime: state.ctx.currentTime };
+    lfo.start();
+    return node;
   });
 }
 
 function stopNodesOnly() {
   state.nodes.forEach(n => {
     try { n.osc.stop(); } catch {}
-    try { n.osc.disconnect(); } catch {}
-    try { n.gain.disconnect(); } catch {}
-    try { n.filter.disconnect(); } catch {}
-    try { n.pan && n.pan.disconnect(); } catch {}
+    try { n.lfo?.stop(); } catch {}
+    ['osc','gain','filter','pan','lfo','ampMod','freqMod','filterMod','panMod'].forEach(key => {
+      try { n[key]?.disconnect(); } catch {}
+    });
   });
   state.nodes = [];
 }
 
 function syncNodesFromState() {
   if (!state.isPlaying) return;
-  state.layers.forEach((layer, i) => {
-    const n = state.nodes[i];
-    if (!n) return;
-    const t = state.ctx.currentTime;
-    if (n.osc.type !== layer.waveform) n.osc.type = layer.waveform;
-    n.osc.frequency.setTargetAtTime(layer.freq, t, 0.02);
-    n.filter.frequency.setTargetAtTime(layer.filterCutoff, t, 0.05);
-    if (n.pan) n.pan.pan.setTargetAtTime(layer.pan, t, 0.05);
+  state.layers.forEach((layer, i) => updateLayerNodeFromState(layer, state.nodes[i]));
+}
+
+async function resumeAudioIfNeeded(source = 'automatic') {
+  if (!state.isPlaying || !state.ctx || state.ctx.state === 'running' || state.ctx.state === 'closed') return false;
+  try {
+    await state.ctx.resume();
+    logSessionEvent('audio_context_resumed', { source, state: state.ctx.state });
+    updateContinuityUI();
+    return state.ctx.state === 'running';
+  } catch (error) {
+    state.continuityMessage = 'O sistema suspendeu o áudio. Toca em Iniciar/Parar ou no ecrã para retomar.';
+    updateContinuityUI();
+    return false;
+  }
+}
+
+async function requestPlaybackWakeLock(source = 'playback') {
+  if (!state.isPlaying || !state.wakeLockWanted || document.visibilityState !== 'visible' || !('wakeLock' in navigator)) {
+    updateContinuityUI();
+    return;
+  }
+  if (state.wakeLock && !state.wakeLock.released) return;
+  try {
+    state.wakeLock = await navigator.wakeLock.request('screen');
+    state.wakeLock.addEventListener('release', () => {
+      state.wakeLock = null;
+      updateContinuityUI();
+    }, { once: true });
+    logSessionEvent('wake_lock_acquired', { source });
+  } catch (error) {
+    state.wakeLock = null;
+    state.continuityMessage = 'Proteção parcial: o dispositivo não concedeu o bloqueio de ecrã.';
+  }
+  updateContinuityUI();
+}
+
+async function releasePlaybackWakeLock(source = 'stop') {
+  const lock = state.wakeLock;
+  state.wakeLock = null;
+  if (lock && !lock.released) {
+    try { await lock.release(); } catch {}
+    logSessionEvent('wake_lock_released', { source });
+  }
+  updateContinuityUI();
+}
+
+function updateContinuityUI() {
+  const pill = qs('#continuityPill');
+  const detail = qs('#continuityDetail');
+  if (!pill || !detail) return;
+  if (!state.isPlaying) {
+    pill.classList.add('hidden');
+    detail.textContent = state.wakeLockWanted
+      ? 'Proteção preparada. Pode ser limitada por poupança de bateria, chamadas, mudança de aplicação ou regras do sistema.'
+      : 'Manter ecrã ativo está desligado. A modulação Web Audio continua independente da animação visual.';
+    return;
+  }
+  pill.classList.remove('hidden');
+  const ctxRunning = state.ctx?.state === 'running';
+  if (state.wakeLockWanted && state.wakeLock && !state.wakeLock.released) {
+    pill.textContent = ctxRunning ? 'continuidade móvel ativa' : 'áudio interrompido';
+    detail.textContent = ctxRunning ? 'Motor de áudio ativo e ecrã protegido durante a reprodução.' : 'O sistema interrompeu o AudioContext; toca no ecrã para tentar retomar.';
+  } else if (!state.wakeLockWanted) {
+    pill.textContent = ctxRunning ? 'áudio contínuo' : 'áudio interrompido';
+    detail.textContent = ctxRunning ? 'Modulação nativa ativa; o ecrã pode bloquear porque a proteção foi desligada.' : 'Toca no ecrã para tentar retomar o AudioContext.';
+  } else {
+    pill.textContent = ctxRunning ? 'proteção parcial' : 'áudio interrompido';
+    detail.textContent = state.continuityMessage || 'Áudio ativo, mas o dispositivo não confirmou a proteção contra bloqueio do ecrã.';
+  }
+}
+
+function setupContinuityProtection() {
+  const pref = localStorage.getItem('synthlabKeepAwake');
+  state.wakeLockWanted = pref !== 'false';
+  const checkbox = qs('#keepAwakeEnabled');
+  if (checkbox) checkbox.checked = state.wakeLockWanted;
+
+  checkbox?.addEventListener('change', async () => {
+    state.wakeLockWanted = checkbox.checked;
+    localStorage.setItem('synthlabKeepAwake', String(state.wakeLockWanted));
+    logSessionEvent('continuity_preference_change', { keepAwake: state.wakeLockWanted });
+    if (state.wakeLockWanted) await requestPlaybackWakeLock('preference_enabled');
+    else await releasePlaybackWakeLock('preference_disabled');
+    updateContinuityUI();
   });
+
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && state.isPlaying) {
+      await resumeAudioIfNeeded('visibility_return');
+      await requestPlaybackWakeLock('visibility_return');
+    }
+  });
+  ['pageshow','focus','pointerdown','touchstart'].forEach(eventName => {
+    window.addEventListener(eventName, () => {
+      if (state.isPlaying) resumeAudioIfNeeded(eventName);
+    }, { passive: true });
+  });
+  updateContinuityUI();
 }
 
 async function startPlayback({ sequence = false } = {}) {
@@ -401,6 +604,7 @@ async function startPlayback({ sequence = false } = {}) {
   buildNodes();
   state.isPlaying = true;
   loopAudio();
+  requestPlaybackWakeLock('playback_start');
   updateUI();
 }
 
@@ -415,7 +619,10 @@ function stopPlayback({ reason = 'user_stop', finalizeTimedExports = false } = {
       try {
         n.gain.gain.cancelScheduledValues(now);
         n.gain.gain.setTargetAtTime(0, now, 0.05);
+        n.ampMod?.gain.cancelScheduledValues(now);
+        n.ampMod?.gain.setTargetAtTime(0, now, 0.03);
         n.osc.stop(now + 0.25);
+        n.lfo?.stop(now + 0.25);
       } catch {}
     });
     setTimeout(stopNodesOnly, 320);
@@ -423,6 +630,7 @@ function stopPlayback({ reason = 'user_stop', finalizeTimedExports = false } = {
   if (finalizeTimedExports) {
     if (state.isRecording) stopRecording();
   }
+  releasePlaybackWakeLock(reason);
   updateUI();
 }
 
@@ -447,6 +655,7 @@ function applySequenceStage(index) {
   const row = state.sequenceRows[index];
   if (!row) return;
   state.layers.forEach((l, i) => { l.active = i === 0; });
+  if (qs('#secondaryPairEnabled')) qs('#secondaryPairEnabled').checked = false;
   const l = state.layers[0];
   l.freq = row.freq;
   l.pulseHz = row.pulseHz;
@@ -463,40 +672,6 @@ function loopAudio() {
   const now = state.ctx.currentTime;
   if (state.sequenceMode) updateSequence(now);
   else updateTimer(now);
-
-  state.layers.forEach((layer, i) => {
-    const n = state.nodes[i];
-    if (!n) return;
-    const t = now - n.startTime;
-    const pulse = layer.pulseHz > 0 ? (Math.sin(2 * Math.PI * layer.pulseHz * t - Math.PI / 2) + 1) / 2 : 1;
-    const depth = clamp(layer.pulseDepth, 0, 0.95);
-    let gain = layer.active ? layer.level : 0;
-    let freq = layer.freq;
-    let cutoff = layer.filterCutoff;
-    let pan = layer.pan;
-
-    if (layer.modType === 'continuous_plus_pulse') {
-      gain *= (1 - depth) + depth * pulse;
-    } else if (layer.modType === 'tremolo') {
-      gain *= (1 - depth * 0.85) + (depth * 0.85) * pulse;
-    } else if (layer.modType === 'vibrato') {
-      const cents = 20 * depth;
-      freq = layer.freq * Math.pow(2, ((Math.sin(2 * Math.PI * Math.max(layer.pulseHz, 0.1) * t) * cents) / 1200));
-    } else if (layer.modType === 'filter_sweep') {
-      cutoff = clamp(layer.filterCutoff * (0.55 + pulse * (1.6 + depth)), 120, 12000);
-      gain *= 0.9;
-    } else if (layer.modType === 'pan_motion') {
-      pan = clamp(layer.pan + Math.sin(2 * Math.PI * Math.max(layer.pulseHz, 0.05) * t) * depth, -1, 1);
-      gain *= 0.92;
-    }
-
-    const audioTime = state.ctx.currentTime;
-    n.gain.gain.setTargetAtTime(gain, audioTime, 0.015);
-    n.osc.frequency.setTargetAtTime(freq, audioTime, 0.02);
-    n.filter.frequency.setTargetAtTime(cutoff, audioTime, 0.03);
-    if (n.pan) n.pan.pan.setTargetAtTime(pan, audioTime, 0.03);
-  });
-
   state.raf = requestAnimationFrame(loopAudio);
   updateUI(false);
 }
@@ -986,6 +1161,72 @@ function applyPlayerPreset() {
   updateUI();
 }
 
+function readSecondaryPairFromUI() {
+  return {
+    base: parseDecimal(qs('#playerBase2')?.value, 639),
+    pulse: parseDecimal(qs('#playerPulse2')?.value, 0.5),
+    mode: qs('#playerModType2')?.value || 'continuous_plus_pulse',
+    level: parseDecimal(qs('#playerLevel2')?.value, 0.25),
+  };
+}
+
+function applySecondaryPair(source = 'secondary_apply') {
+  const pair = readSecondaryPairFromUI();
+  const layer = state.layers[1];
+  layer.active = !!qs('#secondaryPairEnabled')?.checked;
+  layer.freq = pair.base;
+  layer.pulseHz = pair.pulse;
+  layer.modType = pair.mode;
+  layer.level = pair.level;
+  renderLayers();
+  syncNodesFromState();
+  logSessionEvent('secondary_pair_applied', { source, active: layer.active, pair, layer: safeClone(layer) });
+  updateSecondaryPairUI();
+  updateUI();
+}
+
+function copyPrimaryPairToSecondary() {
+  qs('#playerBase2').value = qs('#playerBase').value;
+  qs('#playerPulse2').value = qs('#playerPulse').value;
+  qs('#playerModType2').value = qs('#playerModType').value;
+  qs('#playerLevel2').value = Math.min(parseDecimal(qs('#playerLevel').value, 0.45), 0.65);
+  applySecondaryPair('copy_primary');
+}
+
+function updateSecondaryPairUI() {
+  const enabled = !!qs('#secondaryPairEnabled')?.checked;
+  const controls = qs('#secondaryPairControls');
+  const apply = qs('#applySecondaryPair');
+  const badge = qs('#secondaryPairBadge');
+  const status = qs('#secondaryPairStatus');
+  controls?.classList.toggle('is-disabled', !enabled);
+  if (apply) apply.disabled = !enabled;
+  if (badge) {
+    badge.textContent = enabled ? 'ativo' : 'desligado';
+    badge.classList.toggle('on', enabled);
+  }
+  if (status) {
+    const pair = readSecondaryPairFromUI();
+    status.textContent = enabled
+      ? `Ativo: ${fmtHz(pair.base)} Hz + pulso ${fmtHz(pair.pulse)} Hz · ${MOD_LABELS[pair.mode]} · nível ${Math.round(pair.level * 100)}%.`
+      : 'Desligado: só o par principal é ouvido.';
+  }
+}
+
+function setupSecondaryPair() {
+  const toggle = qs('#secondaryPairEnabled');
+  toggle?.addEventListener('change', () => applySecondaryPair('toggle'));
+  qs('#applySecondaryPair')?.addEventListener('click', () => applySecondaryPair('button'));
+  qs('#copyPrimaryPair')?.addEventListener('click', copyPrimaryPairToSecondary);
+  ['#playerBase2','#playerPulse2','#playerModType2','#playerLevel2'].forEach(sel => {
+    qs(sel)?.addEventListener(sel === '#playerLevel2' ? 'input' : 'change', () => {
+      if (toggle?.checked) applySecondaryPair(state.isPlaying ? 'live_change' : 'control_change');
+      else updateSecondaryPairUI();
+    });
+  });
+  updateSecondaryPairUI();
+}
+
 function loadSequencePreset() {
   const id = qs('#sequencePresetSelect').value;
   const preset = PRESETS.sequencePresets.find(p => p.id === id);
@@ -1054,10 +1295,14 @@ function updateUI(renderLayerText = true) {
 
   const l = state.layers[0];
   const cycle = l.pulseHz > 0 ? (1 / l.pulseHz) : 0;
-  qs('#technicalSummary').innerHTML = `Canal 1: ${fmtHz(l.freq)} Hz (${getBaseMeaning(l.freq)}). Pulso: ${fmtHz(l.pulseHz)} Hz ${cycle ? `= ciclo de ${cycle.toFixed(cycle >= 1 ? 1 : 2)} s` : ''}. Modulação: ${MOD_LABELS[l.modType]}.`;
+  const second = state.layers[1];
+  const secondLine = second?.active ? `<br>Segundo par: ${fmtHz(second.freq)} Hz + pulso ${fmtHz(second.pulseHz)} Hz · ${MOD_LABELS[second.modType]}.` : '';
+  qs('#technicalSummary').innerHTML = `Canal 1: ${fmtHz(l.freq)} Hz (${getBaseMeaning(l.freq)}). Pulso: ${fmtHz(l.pulseHz)} Hz ${cycle ? `= ciclo de ${cycle.toFixed(cycle >= 1 ? 1 : 2)} s` : ''}. Modulação: ${MOD_LABELS[l.modType]}.${secondLine}`;
   qs('#gestureExplain').innerHTML = `<strong>Canal 1</strong><br>Frequência: ${fmtHz(l.freq)} Hz<br>Intensidade da modulação: ${Math.round(l.pulseDepth*100)}%<br>Resultado: ${MOD_EXPLAIN[l.modType]}<br><span class="hint">Base experiencial: ${getBaseMeaning(l.freq)}. Pulso: ${getPulseMeaning(l.pulseHz)}.</span>`;
 
   updateQuickTimerUI();
+  updateSecondaryPairUI();
+  updateContinuityUI();
   updateRecorderUI();
   updateXYVisual();
 }
@@ -1739,6 +1984,7 @@ function setupQuickTimer() {
 
 function initEvents() {
   setupQuickTimer();
+  setupSecondaryPair();
   qs('#playStopBtn').addEventListener('click', () => state.isPlaying ? stopPlayback() : startPlayback());
   qs('#panicBtn').addEventListener('click', panic);
   qs('#recordStartBtn')?.addEventListener('click', startRecording);
@@ -1760,7 +2006,7 @@ function initEvents() {
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js?v=studio1_7_1').catch(() => {});
+    navigator.serviceWorker.register('service-worker.js?v=studio1_7_2').catch(() => {});
   }
 }
 
@@ -1772,6 +2018,7 @@ function init() {
   renderKeyboard();
   applyKeyboardModPreset();
   initEvents();
+  setupContinuityProtection();
   onMasterChange();
   updateUI();
   registerSW();

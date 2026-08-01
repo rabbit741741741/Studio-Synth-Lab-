@@ -1,4 +1,4 @@
-Publicar SynthLab Studio v1.7.1 no GitHub Pages
+Publicar SynthLab Studio v1.7.2 no GitHub Pages
 
 1. Abrir o repositório do SynthLab Studio.
 2. Substituir TODOS os ficheiros na raiz pelos conteúdos deste ZIP.
@@ -8,10 +8,13 @@ Publicar SynthLab Studio v1.7.1 no GitHub Pages
 6. Quando o deploy terminar, abrir primeiro:
    https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/limpar_cache.html
 7. Depois abrir:
-   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1_7_1
-8. Confirmar no topo: SynthLab Studio v1.7.1 e v1.7.1 carregada.
+   https://TEU-UTILIZADOR.github.io/NOME-DO-REPOSITORIO/?v=studio1_7_2
+8. Confirmar no topo: SynthLab Studio v1.7.2 e v1.7.2 carregada.
 9. Testes mínimos:
-   - iniciar som e testar o temporizador rápido;
+   - iniciar som em “Sem limite” e deixá-lo tocar alguns minutos no smartphone;
+   - confirmar que surge “continuidade móvel ativa” quando o Wake Lock é concedido;
+   - abrir “Opções ocasionais”, ativar o segundo par e confirmar os dois pares em “A ouvir agora”;
+   - testar o temporizador rápido;
    - gravar alguns segundos;
    - confirmar que o ficheiro é M4A quando suportado ou WAV caso contrário;
    - guardar áudio + TXT;

@@ -4,16 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>SynthLab Studio v1.7.1</title>
-  <link rel="manifest" href="manifest.json?v=studio1_7_1" />
-  <link rel="stylesheet" href="style.css?v=studio1_7_1" />
+  <title>SynthLab Studio v1.7.2</title>
+  <link rel="manifest" href="manifest.json?v=studio1_7_2" />
+  <link rel="stylesheet" href="style.css?v=studio1_7_2" />
 </head>
 <body>
   <header class="app-header">
     <div>
-      <p class="eyebrow">SynthLab Studio v1.7.1</p>
+      <p class="eyebrow">SynthLab Studio v1.7.2</p>
       <h1>Creative Space</h1>
-      <p class="subtitle">Player e Studio com temporizador rápido, teclado, acordes, arpejos, efeitos, MIDI, gravação interna em M4A/AAC ou WAV e TXT/script.</p>
+      <p class="subtitle">Player e Studio com temporizador rápido, continuidade móvel reforçada, segundo par opcional, teclado, acordes, arpejos, efeitos, MIDI e gravação local.</p>
     </div>
     <div class="header-actions">
       <details id="quickTimerDetails" class="quick-timer">
@@ -48,7 +48,8 @@
       <div class="now-topline">
         <span class="status-dot" id="statusDot"></span>
         <span id="transportState">Parado</span>
-        <span class="version-pill">v1.7.1 carregada</span>
+        <span id="continuityPill" class="continuity-pill hidden"></span>
+        <span class="version-pill">v1.7.2 carregada</span>
       </div>
       <h2>A ouvir agora</h2>
       <div id="nowSummary" class="now-summary">Nenhum som ativo. Carrega em Iniciar.</div>
@@ -127,6 +128,59 @@
         </article>
       </div>
 
+      <details id="occasionalOptions" class="card details-card occasional-options">
+        <summary>Opções ocasionais — segundo par e continuidade móvel <span id="secondaryPairBadge" class="summary-badge">desligado</span></summary>
+        <div class="occasional-grid">
+          <section class="occasional-section">
+            <div class="occasional-heading">
+              <div>
+                <h3>Segundo par frequência + pulso</h3>
+                <p class="hint">Fica fora do percurso principal e só se mistura com o par principal quando é ativado.</p>
+              </div>
+              <label class="inline-check compact-toggle">
+                <input id="secondaryPairEnabled" type="checkbox" />
+                Ativar segundo par
+              </label>
+            </div>
+            <div id="secondaryPairControls" class="form-grid secondary-pair-controls is-disabled">
+              <label>Frequência base
+                <select id="playerBase2"></select>
+              </label>
+              <label>Pulso
+                <select id="playerPulse2"></select>
+              </label>
+              <label>Modo
+                <select id="playerModType2">
+                  <option value="continuous_plus_pulse">Tom contínuo + pulso</option>
+                  <option value="tremolo">Tremolo contínuo</option>
+                  <option value="vibrato">Vibrato leve</option>
+                  <option value="filter_sweep">Filtro oscilante</option>
+                  <option value="pan_motion">Panorama automático</option>
+                </select>
+              </label>
+              <label>Nível
+                <input id="playerLevel2" type="range" min="0" max="0.65" step="0.01" value="0.25" />
+              </label>
+            </div>
+            <div class="row-actions compact-actions">
+              <button id="applySecondaryPair" class="secondary" type="button" disabled>Aplicar ao segundo par</button>
+              <button id="copyPrimaryPair" class="ghost" type="button">Copiar configuração principal</button>
+            </div>
+            <p id="secondaryPairStatus" class="hint">Desligado: só o par principal é ouvido.</p>
+          </section>
+
+          <section class="occasional-section">
+            <h3>Continuidade no smartphone</h3>
+            <label class="inline-check">
+              <input id="keepAwakeEnabled" type="checkbox" checked />
+              Manter o ecrã ativo durante a reprodução
+            </label>
+            <p class="hint">A modulação passa a correr no motor de áudio, sem depender da animação do ecrã. Quando permitido pelo dispositivo, a PWA também evita o bloqueio automático e tenta retomar o AudioContext após interrupções.</p>
+            <p id="continuityDetail" class="hint">Proteção preparada. Pode ser limitada por poupança de bateria, chamadas, mudança de aplicação ou regras do sistema.</p>
+          </section>
+        </div>
+      </details>
+
       <article class="card">
         <h3>Gravação interna</h3>
         <p class="hint">A gravação capta o áudio interno do SynthLab Studio: camadas, teclado, acordes, arpejos, vibrato, tremolo, filtros, panorama e sequências. Não usa microfone nem cria vídeo.</p>
@@ -185,8 +239,8 @@
         </article>
       </div>
 
-      <details class="card details-card" open>
-        <summary>Camadas sonoras</summary>
+      <details class="card details-card">
+        <summary>Camadas sonoras avançadas</summary>
         <div id="layersEditor" class="layers-editor"></div>
       </details>
 
@@ -453,7 +507,7 @@
       <article class="card text-card">
         <h3>Nota de rigor</h3>
         <p>As descrições de efeitos são simbólicas, subjetivas e experienciais. O SynthLab Studio gera áudio para exploração sonora, meditação, relaxamento, estudo de frequências e criação musical. Não é dispositivo médico, não diagnostica, não trata, não cura e não previne doenças.</p>
-        <p>Usa volume baixo, especialmente em sessões longas. Para uso noturno, reduz brilho, volume e evita aquecimento do dispositivo.</p>
+        <p>Usa volume baixo, especialmente em sessões longas. Para uso noturno, reduz brilho e volume. A opção de continuidade móvel pode manter o ecrã ativo; desativa-a nas Opções ocasionais se preferires permitir o bloqueio do ecrã.</p>
       </article>
       <article class="card text-card">
         <h3>Estratégia de produto</h3>
@@ -467,7 +521,7 @@
     <span>Offline-first PWA · sem login · sem microfone · sem telemetria própria</span>
   </footer>
 
-  <script src="presets.js?v=studio1_7_1"></script>
-  <script src="app.js?v=studio1_7_1"></script>
+  <script src="presets.js?v=studio1_7_2"></script>
+  <script src="app.js?v=studio1_7_2"></script>
 </body>
 </html>

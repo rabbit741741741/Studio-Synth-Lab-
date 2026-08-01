@@ -1,4 +1,4 @@
-SynthLab Studio v1.7.1 — temporizador rápido + áudio universal
+SynthLab Studio v1.7.2 — continuidade móvel + segundo par opcional
 
 Correção de direção:
 Esta versão não inclui modo Instagram, vídeo vertical, Reels nem qualquer gerador visual social. O objetivo é apenas gravar o som num formato fácil de reutilizar posteriormente.
@@ -27,7 +27,8 @@ Temporizador rápido:
 - finaliza corretamente uma gravação ativa.
 
 Funções preservadas:
-- 3 camadas sonoras;
+- par principal e segundo par opcional no Player;
+- 3 camadas sonoras disponíveis no Studio avançado;
 - teclado touch/rato/teclado físico;
 - acordes, voicings, inversões, strum e arpejador;
 - vibrato, tremolo, filtros e panorama;
@@ -40,7 +41,18 @@ Nota sobre WAV:
 WAV é descomprimido e pode ocupar aproximadamente 10 MB por minuto em estéreo a 44,1 kHz/16 bit. Para sessões muito longas, M4A/AAC é preferível quando disponível.
 
 Publicação no GitHub Pages:
-Carregar todos os ficheiros e icons/ na raiz. Abrir /limpar_cache.html e depois /?v=studio1_7_1.
+Carregar todos os ficheiros e icons/ na raiz. Abrir /limpar_cache.html e depois /?v=studio1_7_2.
 
 Nota de rigor:
 As descrições de efeitos são simbólicas, subjetivas e experienciais. O SynthLab não é dispositivo médico. Usar volume baixo e interromper em caso de desconforto.
+
+
+NOVIDADES v1.7.2
+- A modulação das camadas principais passou para nós Web Audio nativos, reduzindo paragens quando a animação do ecrã é suspensa no smartphone.
+- Retoma automática do AudioContext ao regressar à PWA.
+- Screen Wake Lock opcional e ativo por defeito durante a reprodução, quando suportado.
+- Segundo par frequência + pulso recuperado numa área recolhida de Opções ocasionais.
+- O segundo par está desligado por defeito e não interfere no fluxo normal.
+
+LIMITAÇÃO MÓVEL
+Chamadas, mudança de aplicação, modos agressivos de poupança de bateria e políticas do sistema podem interromper áudio web. A v1.7.2 reduz estas interrupções, mas uma PWA não consegue anulá-las em todos os smartphones.

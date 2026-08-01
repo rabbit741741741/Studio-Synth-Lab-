@@ -1,12 +1,12 @@
-/* SynthLab Studio v1.7.1 — cache/offline */
-const CACHE_NAME = 'synthlab-studio-v1-7-1-quick-timer-audio-cache-20260730';
+/* SynthLab Studio v1.7.2 — cache/offline */
+const CACHE_NAME = 'synthlab-studio-v1-7-2-quick-timer-audio-cache-20260801';
 const CORE_ASSETS = [
   './',
-  './index.html?v=studio1_7_1',
-  './style.css?v=studio1_7_1',
-  './presets.js?v=studio1_7_1',
-  './app.js?v=studio1_7_1',
-  './manifest.json?v=studio1_7_1',
+  './index.html?v=studio1_7_2',
+  './style.css?v=studio1_7_2',
+  './presets.js?v=studio1_7_2',
+  './app.js?v=studio1_7_2',
+  './manifest.json?v=studio1_7_2',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './limpar_cache.html'
@@ -30,6 +30,6 @@ self.addEventListener('fetch', (event) => {
       const copy = res.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
       return res;
-    }).catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html?v=studio1_7_1')))
+    }).catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html?v=studio1_7_2')))
   );
 });

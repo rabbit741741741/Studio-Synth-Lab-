@@ -1,8 +1,8 @@
 {
-  "name": "SynthLab Studio v1.7.1",
+  "name": "SynthLab Studio v1.7.2",
   "short_name": "SynthLab Studio",
-  "description": "Espaço de criação sonora PWA com temporizador rápido, teclado, efeitos e gravação local em M4A/AAC ou WAV.",
-  "start_url": "./index.html?v=studio1_7_1",
+  "description": "Espaço de criação sonora PWA com temporizador rápido, continuidade móvel, segundo par opcional, teclado, efeitos e gravação local em M4A/AAC ou WAV.",
+  "start_url": "./index.html?v=studio1_7_2",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
